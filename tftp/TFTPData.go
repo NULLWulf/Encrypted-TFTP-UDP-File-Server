@@ -57,12 +57,6 @@ func NewTFTPData(blockNumber uint16, data []byte) (*TFTPData, error) {
 		return nil, errors.New("data is empty")
 	}
 
-	// Construct the data packet
-	packet := make([]byte, 2+2+len(data))
-	binary.BigEndian.PutUint16(packet[:2], uint16(TFTPOpcodeDATA))
-	binary.BigEndian.PutUint16(packet[2:4], blockNumber)
-	copy(packet[4:], data)
-
 	// Construct and return the TFTPData struct
 	dataPacket := &TFTPData{
 		Opcode:      TFTPOpcodeDATA,

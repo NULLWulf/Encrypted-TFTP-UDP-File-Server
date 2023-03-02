@@ -129,20 +129,6 @@ func NewTFTPRequest(filename []byte, mode []byte, transferSize uint32, options m
 	} else {
 		opcode = uint16(TFTPOpcodeRRQ)
 	}
-	optionsString := ""
-	if options != nil {
-		for key, value := range options {
-			optionsString += key + "\x00" + value + "\x00"
-		}
-	}
-	packet := make([]byte, 2+len(filename)+1+len(mode)+1+len(optionsString)+2+4)
-	binary.BigEndian.PutUint16(packet[:2], opcode)
-	copy(packet[2:], filename)
-	packet[2+len(filename)] = 0
-	copy(packet[2+len(filename)+1:], mode)
-	packet[2+len(filename)+1+len(mode)] = 0
-	copy(packet[2+len(filename)+1+len(mode)+1:], optionsString)
-	packet[len(packet)-2] = 0
 
 	// Construct and return the TFTPRequest struct
 	request := &TFTPRequest{
