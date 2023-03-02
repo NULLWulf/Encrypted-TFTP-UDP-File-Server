@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Clien to Proxy Server Image Fetch</title>
+</head>
+<body>
+<div>
+<div>
+    <label for="image-url">Enter image URL:</label>
+    <input type="text" id="image-url" name="image-url">
+    <button onclick="fetchImage()">Fetch Image</button>
+</div>
+<div style="width: 500px;">
+    <img id="image-container" src="" alt="Image">
+</div>
+
+</div>
+<script>
+    function fetchImage() {
+        const url = document.getElementById("image-url").value;
+        fetch(`/getImage?url=${url}`)
+            .then(response => response.blob())
+            .then(blob => {
+                const imageUrl = URL.createObjectURL(blob);
+                document.getElementById("image-container").src = imageUrl;
+            })
+            .catch(error => console.error(error));
+    }
+</script>
+</body>
+</html>
