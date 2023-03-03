@@ -10,7 +10,8 @@ import (
 )
 
 type TFTPClient struct {
-	conn *net.UDPConn
+	conn  *net.UDPConn
+	raddr *net.UDPAddr
 }
 
 func NewTFTPClient() (*TFTPClient, error) {
@@ -24,7 +25,7 @@ func NewTFTPClient() (*TFTPClient, error) {
 		return nil, err
 	}
 
-	return &TFTPClient{conn}, nil
+	return &TFTPClient{conn, remoteAddr}, nil
 }
 
 func (c *TFTPClient) Close() error {
@@ -82,13 +83,13 @@ func (c *TFTPClient) RequestFile(url string) (tData []byte, err error) {
 	//	}
 	//}(conn)
 
-	_, err = conn.WriteToUDP(packet, remoteAddr)
+	_, err = c.conn.WriteToUDP(packet, c.raddr)
 	if err != nil {
 		log.Printf("Error sending request packet: %s\n", err)
 		return
 	}
 
-	n, _, err := conn.ReadFromUDP(packet)
+	n, _, err := c.conn.ReadFromUDP(packet)
 	packet = packet[:n]
 	opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(packet[:2]))
 	if err != nil {
@@ -114,14 +115,14 @@ func (c *TFTPClient) RequestFile(url string) (tData []byte, err error) {
 	}
 
 	// If checks clear, begin sliding window protocol
-	StartDataClientXfer(conn)
+	c.StartDataClientXfer()
 	if err != nil {
 		return nil, err
 	}
 	return
 }
 
-func StartDataClientXfer(conn *net.UDPConn) {
+func (c *TFTPClient) StartDataClientXfer() {
 	pckBfr := make([]byte, 1024)
 	dataBuffer := make([]byte, 0)
 	n := 0
@@ -130,7 +131,7 @@ func StartDataClientXfer(conn *net.UDPConn) {
 	closeXfer := false
 
 	for {
-		n, raddr, err = conn.ReadFromUDP(pckBfr)
+		n, raddr, err = c.conn.ReadFromUDP(pckBfr)
 		pckBfr = pckBfr[:n]
 		opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(pckBfr[:2]))
 		switch opcode {
@@ -140,7 +141,7 @@ func StartDataClientXfer(conn *net.UDPConn) {
 			dataBuffer = append(dataBuffer, dataPack.Data...)
 			ackPack := tftp.NewTFTPAcknowledgement(dataPack.BlockNumber)
 			pckBfr, _ = ackPack.ToBytes()
-			_, err = conn.WriteToUDP(pckBfr, raddr)
+			_, err = c.conn.WriteToUDP(pckBfr, raddr)
 		case tftp.TFTPOpcodeERROR:
 			var errPack tftp.TFTPError
 			_ = errPack.ReadFromBytes(pckBfr)
