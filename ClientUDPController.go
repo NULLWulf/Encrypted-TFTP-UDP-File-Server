@@ -23,7 +23,7 @@ import (
 // if not expected packet, Returns received opcode
 // and closes the
 // 6) Begin Sliding Window Protocol of Data
-func StartImgReqTFTP(url string) (err error) {
+func StartImgReqTFTP(url string) (tData []byte, err error) {
 
 	packet := make([]byte, 512)
 	// Make a new request packet
@@ -72,16 +72,24 @@ func StartImgReqTFTP(url string) (err error) {
 		if err != nil {
 			errSt := fmt.Sprintf("error packet received... code: %d message: %s\n", errPack.ErrorCode, errPack.ErrorMessage)
 			log.Println(errSt)
-			return errors.New(errSt)
+			return nil, errors.New(errSt)
 		}
 	}
 
 	if opcode != tftp.TFTPOpcodeOACK {
 		errSt := fmt.Sprintf("returned packet opcode is neither OACK or ACK.. opcode: %d packet_t: %s\n", opcode, tftp.TFTPOpcode(opcode))
 		log.Println(errSt)
-		return errors.New(errSt)
+		return nil, errors.New(errSt)
 	}
 
 	// If checks clear, begin sliding window protocol
-	return nil
+	tData, err = StartDataTransferTFTP(conn)
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
+func StartDataTransferTFTP(conn *net.UDPConn) (data []byte, err error) {
+	return
 }
