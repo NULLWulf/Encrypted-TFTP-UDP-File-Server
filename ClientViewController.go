@@ -1,7 +1,6 @@
 package main
 
 import (
-	"CSC445_Assignment2/tftp"
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
@@ -14,6 +13,7 @@ func RunClientMode() {
 
 	err := http.ListenAndServe(":8080", router)
 	if err != nil {
+		log.Fatal("Failed to Listen and Serve: ", err)
 		return
 	}
 }
@@ -21,24 +21,27 @@ func RunClientMode() {
 func homepage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	log.Println("Serving homepage")
 	http.ServeFile(w, r, "./html/index.html")
+	return
 }
 
 func getImage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	imageUrl := r.URL.Query().Get("url")
 	log.Printf("Serving image: %s\n", imageUrl)
-	w.Header().Set("Content-Type", "image/jpeg")
-	imgQue := NewImageQueueObj()
-	err, img := imgQue.AddNewAndReturnImg(imageUrl)
-	log.Printf("Image Size: %d\n", len(img))
 
-	dps, _ := tftp.PrepareTFTPDataPackets(img, 512)
-	newImgr := make([]byte, 0)
-	for _, dp := range dps {
-		newImgr = append(newImgr, dp.Data...)
-	}
-	log.Printf("New Image Size: %d\n", len(newImgr))
-	_, err = w.Write(newImgr)
+	var img []byte
+	client, err := NewTFTPClient()
 	if err != nil {
+		log.Printf("Error Creating TFTP Client: %s\n", err)
 		return
 	}
+	defer client.Close()
+	img, err = client.RequestFile(imageUrl)
+	if err != nil {
+		log.Printf("Error Requesting File over TFTP: %s\n", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/jpeg")
+	_, err = w.Write(img)
+	return
 }

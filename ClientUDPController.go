@@ -1,3 +1,14 @@
+// StartImgReqTFTP Starts image request over UDP taking in parameters needing to create
+// initial Read Request TFTP packet.
+// 1) Attempt to resolve host address
+// 2) Dial host address tion
+// 3) Create request packet
+// 4) Send Request Packet
+// 5) Wait for OACK Packet
+// if error packet, returns error code and message from packet
+// if not expected packet, Returns received opcode
+// and closes the
+// 6) Begin Sliding Window Protocol of Data
 package main
 
 import (
@@ -10,8 +21,9 @@ import (
 )
 
 type TFTPClient struct {
-	conn  *net.UDPConn
-	raddr *net.UDPAddr
+	conn     *net.UDPConn
+	raddr    *net.UDPAddr
+	fileData *[]byte
 }
 
 func NewTFTPClient() (*TFTPClient, error) {
@@ -25,35 +37,14 @@ func NewTFTPClient() (*TFTPClient, error) {
 		return nil, err
 	}
 
-	return &TFTPClient{conn, remoteAddr}, nil
+	return &TFTPClient{conn, remoteAddr, nil}, nil
 }
 
 func (c *TFTPClient) Close() error {
 	return c.conn.Close()
 }
 
-// StartImgReqTFTP Starts image request over UDP taking in parameters needing to create
-// initial Read Request TFTP packet.
-// 1) Attempt to resolve host address
-// 2) Dial host address
-// TODO Send Private Key for encryption
-// TODO Send Window Size
-// TODO Send Acceptable Block Size
-// 3) Create request packet
-// 4) Send Request Packet
-// 5) Wait for OACK Packet
-// if error packet, returns error code and message from packet
-// if not expected packet, Returns received opcode
-// and closes the
-// 6) Begin Sliding Window Protocol of Data
 func (c *TFTPClient) RequestFile(url string) (tData []byte, err error) {
-
-	client, err := NewTFTPClient()
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
-
 	packet := make([]byte, 512)
 	// Make a new request packet
 	BlockSize := 512
@@ -61,27 +52,6 @@ func (c *TFTPClient) RequestFile(url string) (tData []byte, err error) {
 	PrivateKey := "1234567890123456"
 	reqPack, _ := tftp.NewTFTPRequest([]byte(url), []byte("octet"), 0, map[string]string{"blksize": string(rune(BlockSize)), "windowsize": string(rune(WindowSize)), "key": PrivateKey})
 	packet, _ = reqPack.ToBytes()
-	//remoteAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:7501")
-	//
-	//if err != nil {
-	//	// TODO Make error more elegant
-	//	log.Printf("Error attempting to resolve host address: %s\n", err)
-	//	return
-	//}
-	//
-	//conn, err := net.DialUDP("udp", nil, remoteAddr)
-	//if err != nil {
-	//	// TODO Make error more elegant
-	//	log.Printf("Error connecting to host: %s\n", err)
-	//	return
-	//}
-	//defer func(conn *net.UDPConn) {
-	//	err := conn.Close()
-	//	if err != nil {
-	//		log.Printf("Error closing connection: %s\n", err)
-	//		return
-	//	}
-	//}(conn)
 
 	_, err = c.conn.WriteToUDP(packet, c.raddr)
 	if err != nil {
@@ -109,29 +79,33 @@ func (c *TFTPClient) RequestFile(url string) (tData []byte, err error) {
 	}
 
 	if opcode != tftp.TFTPOpcodeOACK {
-		errSt := fmt.Sprintf("returned packet opcode is neither OACK or ACK.. opcode: %d packet_t: %s\n", opcode, tftp.TFTPOpcode(opcode))
+		errSt := fmt.Sprintf("returned packet opcode is neither OACK or ACK.. opcode: %d packet_t: %s\n", opcode, opcode.String())
 		log.Println(errSt)
 		return nil, errors.New(errSt)
 	}
 
+	// Process OACK packet
+	var oackPack tftp.TFTPOptionAcknowledgement
+	err = oackPack.ReadFromBytes(packet)
+
 	// If checks clear, begin sliding window protocol
-	c.StartDataClientXfer()
+	err = c.StartDataClientXfer()
 	if err != nil {
 		return nil, err
 	}
-	return
+
+	return *c.fileData, nil
 }
 
-func (c *TFTPClient) StartDataClientXfer() {
+func (c *TFTPClient) StartDataClientXfer() (err error) {
 	pckBfr := make([]byte, 1024)
-	dataBuffer := make([]byte, 0)
+	dataBuffer := *c.fileData
+	dataBuffer = make([]byte, 0)
 	n := 0
-	var raddr *net.UDPAddr
-	var err error
 	closeXfer := false
 
 	for {
-		n, raddr, err = c.conn.ReadFromUDP(pckBfr)
+		n, c.raddr, err = c.conn.ReadFromUDP(pckBfr)
 		pckBfr = pckBfr[:n]
 		opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(pckBfr[:2]))
 		switch opcode {
@@ -141,12 +115,11 @@ func (c *TFTPClient) StartDataClientXfer() {
 			dataBuffer = append(dataBuffer, dataPack.Data...)
 			ackPack := tftp.NewTFTPAcknowledgement(dataPack.BlockNumber)
 			pckBfr, _ = ackPack.ToBytes()
-			_, err = c.conn.WriteToUDP(pckBfr, raddr)
+			_, err = c.conn.WriteToUDP(pckBfr, c.raddr)
 		case tftp.TFTPOpcodeERROR:
 			var errPack tftp.TFTPError
 			_ = errPack.ReadFromBytes(pckBfr)
-			er := fmt.Sprintf("error packet received... code: %d message: %s\n", errPack.ErrorCode, errPack.ErrorMessage)
-			err = errors.New(er)
+			err = fmt.Errorf("error packet received... code: %d message: %s\n", errPack.ErrorCode, errPack.ErrorMessage)
 			closeXfer = true
 		default:
 			closeXfer = true
