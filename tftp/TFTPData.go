@@ -3,6 +3,7 @@ package tftp
 import (
 	"encoding/binary"
 	"errors"
+	"log"
 )
 
 // TFTPData represents a TFTP data packet.
@@ -64,4 +65,31 @@ func NewTFTPData(blockNumber uint16, data []byte) (*TFTPData, error) {
 		Data:        data,
 	}
 	return dataPacket, nil
+}
+
+func PrepareTFTPDataPackets(data []byte, blockSize int) (dataQueue []*TFTPData, err error) {
+	// Create a slice of TFTPData packets
+	blocks := len(data) / blockSize
+	log.Printf("Length of data: %d, Block size: %d, Blocks: %d", len(data), blockSize, blocks)
+	if len(data)%blockSize != 0 {
+		blocks++
+	}
+	dataQueue = make([]*TFTPData, blocks)
+
+	// Populate the slice with TFTPData packets
+	for i := 0; i < blocks; i++ {
+		// Calculate the start and end indices of the data
+		start := i * blockSize
+		end := start + blockSize
+		if end > len(data) {
+			end = len(data)
+		}
+
+		// Create the TFTPData packet
+		dataQueue[i], err = NewTFTPData(uint16(i+1), data[start:end])
+		if err != nil {
+			return
+		}
+	}
+	return
 }

@@ -10,11 +10,11 @@ import (
 
 const BlockSize = 512
 
-func tcpClientImageRequest(url string) (err error) {
+func tcpClientImageRequest(url string) (imgBuff []byte, err error) {
 
 	conn, err := net.Dial("tcp", Address)
 	if err != nil {
-		return fmt.Errorf("error connecting to server: %s", err)
+		return nil, fmt.Errorf("error connecting to server: %s", err)
 	}
 	defer func(conn net.Conn) {
 		err := conn.Close()
@@ -37,27 +37,8 @@ func tcpClientImageRequest(url string) (err error) {
 		log.Println("Error receiving reply:", err)
 		return
 	}
-
-	// terminates based on packet being less than specified block size
-	for i := 0; i < 100; i++ {
-		n, err = conn.Read(buffer)
-		ack := &tftp.TFTPAcknowledgement{}
-		err = ack.ReadFromBytes(buffer[:n])
-		if err != nil {
-			log.Println("Error receiving reply:", err)
-			return
-		}
-
-		n, err = conn.Read(buffer)
-		data := &tftp.TFTPData{}
-		err = data.ReadFromBytes(buffer[:n])
-		if err != nil {
-			log.Println("Error receiving reply:", err)
-			return
-		}
-	}
-
-	return nil
+	
+	return imgBuff, nil
 }
 
 func initTFTPReqPacket(url string) ([]byte, error) {

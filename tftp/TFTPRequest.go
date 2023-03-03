@@ -17,7 +17,7 @@ type TFTPRequest struct {
 	WindowSize   uint16
 }
 
-func ReadRequestFromBytes(packet []byte) (*TFTPRequest, error) {
+func ReadFromBytes(packet []byte) (*TFTPRequest, error) {
 	// Check that the packet is at least 2 bytes long
 	if len(packet) < 2 {
 		return nil, errors.New("packet too short")

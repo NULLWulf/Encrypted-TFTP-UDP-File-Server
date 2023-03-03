@@ -5,17 +5,19 @@ import (
 	"errors"
 )
 
-// TFTPAcknowledgement TODO Add builder method
 // TFTPAcknowledgement represents a TFTP acknowledgement packet.
 type TFTPAcknowledgement struct {
 	Opcode      TFTPOpcode
 	BlockNumber uint16
 }
 
-//// Builder returns a builder for creating a TFTPAcknowledgement packet.
-//func AckBuilder() *TFTPAcknowledgementBuilder {
-//	return &TFTPAcknowledgementBuilder{}
-//}
+// NewTFTPAcknowledgement creates a new TFTPAcknowledgement object with the given block number.
+func NewTFTPAcknowledgement(blockNumber uint16) *TFTPAcknowledgement {
+	return &TFTPAcknowledgement{
+		Opcode:      TFTPOpcodeACK,
+		BlockNumber: blockNumber,
+	}
+}
 
 // ReadFromBytes reads a TFTPAcknowledgement packet from a byte slice.
 func (ack *TFTPAcknowledgement) ReadFromBytes(packet []byte) error {

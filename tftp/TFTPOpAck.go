@@ -6,11 +6,18 @@ import (
 	"fmt"
 )
 
-// TFTPOptionAcknowledgement TODO - Add builder method for this struct.
 // TFTPOptionAcknowledgement represents a TFTP option acknowledgement packet.
 type TFTPOptionAcknowledgement struct {
 	Opcode  TFTPOpcode
 	Options map[string]string
+}
+
+// NewTFTPOptionAcknowledgement creates a new TFTPOptionAcknowledgement object with the given options.
+func NewTFTPOptionAcknowledgement(options map[string]string) *TFTPOptionAcknowledgement {
+	return &TFTPOptionAcknowledgement{
+		Opcode:  TFTPOpcodeOACK,
+		Options: options,
+	}
 }
 
 // ToBytes converts a TFTPOptionAcknowledgement packet to a byte slice.

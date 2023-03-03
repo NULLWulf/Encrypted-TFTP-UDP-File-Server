@@ -1,6 +1,7 @@
 package main
 
 import (
+	"CSC445_Assignment2/tftp"
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
@@ -28,7 +29,15 @@ func getImage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	w.Header().Set("Content-Type", "image/jpeg")
 	imgQue := NewImageQueueObj()
 	err, img := imgQue.AddNewAndReturnImg(imageUrl)
-	_, err = w.Write(img)
+	log.Printf("Image Size: %d\n", len(img))
+
+	dps, _ := tftp.PrepareTFTPDataPackets(img, 512)
+	newImgr := make([]byte, 0)
+	for _, dp := range dps {
+		newImgr = append(newImgr, dp.Data...)
+	}
+	log.Printf("New Image Size: %d\n", len(newImgr))
+	_, err = w.Write(newImgr)
 	if err != nil {
 		return
 	}
