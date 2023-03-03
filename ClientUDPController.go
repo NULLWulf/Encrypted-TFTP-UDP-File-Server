@@ -18,12 +18,14 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 )
 
 type TFTPClient struct {
 	conn     *net.UDPConn
 	raddr    *net.UDPAddr
 	fileData *[]byte
+	xferSize uint16
 }
 
 func NewTFTPClient() (*TFTPClient, error) {
@@ -37,7 +39,7 @@ func NewTFTPClient() (*TFTPClient, error) {
 		return nil, err
 	}
 
-	return &TFTPClient{conn, remoteAddr, nil}, nil
+	return &TFTPClient{conn: conn, raddr: remoteAddr, xferSize: 0}, nil
 }
 
 func (c *TFTPClient) Close() error {
@@ -87,7 +89,8 @@ func (c *TFTPClient) RequestFile(url string) (tData []byte, err error) {
 	// Process OACK packet
 	var oackPack tftp.TFTPOptionAcknowledgement
 	err = oackPack.ReadFromBytes(packet)
-
+	v, _ := strconv.ParseUint(oackPack.Options["blksize"], 10, 16)
+	c.xferSize = uint16(v)
 	// If checks clear, begin sliding window protocol
 	err = c.StartDataClientXfer()
 	if err != nil {
