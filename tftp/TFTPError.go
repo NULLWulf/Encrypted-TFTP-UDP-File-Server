@@ -36,7 +36,7 @@ func (err *TFTPError) ToBytes() ([]byte, error) {
 	return packet, nil
 }
 
-// ReadFromBytes reads a TFTPError packet from a byte slice.
+// ReadErrPackFromBytes ReadFromBytes reads a TFTPError packet from a byte slice.
 func (err *TFTPError) ReadFromBytes(packet []byte) error {
 	// Check that the packet is at least 5 bytes long
 	if len(packet) < 5 {

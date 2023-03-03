@@ -34,7 +34,7 @@ func (o TFTPOpcode) String() string {
 	}
 }
 
-func handleTFTPPacket(packet []byte) {
+func HandlePacket(packet []byte) {
 	opcode := TFTPOpcode(binary.BigEndian.Uint16(packet[:2]))
 	switch opcode {
 	case TFTPOpcodeRRQ:
