@@ -21,14 +21,14 @@ import (
 	"strconv"
 )
 
-type TFTPClient struct {
+type TFTPProtocol struct {
 	conn     *net.UDPConn
 	raddr    *net.UDPAddr
 	fileData *[]byte
-	xferSize uint16
+	xferSize uint64
 }
 
-func NewTFTPClient() (*TFTPClient, error) {
+func NewTFTPClient() (*TFTPProtocol, error) {
 	remoteAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:7501")
 	if err != nil {
 		return nil, err
@@ -39,14 +39,14 @@ func NewTFTPClient() (*TFTPClient, error) {
 		return nil, err
 	}
 
-	return &TFTPClient{conn: conn, raddr: remoteAddr, xferSize: 0}, nil
+	return &TFTPProtocol{conn: conn, raddr: remoteAddr, xferSize: 0}, nil
 }
 
-func (c *TFTPClient) Close() error {
+func (c *TFTPProtocol) Close() error {
 	return c.conn.Close()
 }
 
-func (c *TFTPClient) RequestFile(url string) (tData []byte, err error) {
+func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 	packet := make([]byte, 512)
 	// Make a new request packet
 	BlockSize := 512
@@ -89,8 +89,7 @@ func (c *TFTPClient) RequestFile(url string) (tData []byte, err error) {
 	// Process OACK packet
 	var oackPack tftp.TFTPOptionAcknowledgement
 	err = oackPack.ReadFromBytes(packet)
-	v, _ := strconv.ParseUint(oackPack.Options["blksize"], 10, 16)
-	c.xferSize = uint16(v)
+	c.xferSize, _ = strconv.ParseUint(oackPack.Options["blksize"], 10, 16)
 	// If checks clear, begin sliding window protocol
 	err = c.StartDataClientXfer()
 	if err != nil {
@@ -100,7 +99,7 @@ func (c *TFTPClient) RequestFile(url string) (tData []byte, err error) {
 	return *c.fileData, nil
 }
 
-func (c *TFTPClient) StartDataClientXfer() (err error) {
+func (c *TFTPProtocol) StartDataClientXfer() (err error) {
 	pckBfr := make([]byte, 1024)
 	dataBuffer := *c.fileData
 	dataBuffer = make([]byte, 0)
@@ -133,7 +132,6 @@ func (c *TFTPClient) StartDataClientXfer() (err error) {
 		}
 	}
 	if err != nil {
-		log.Printf("Error in data transfer: %s\n", err)
 		return
 	}
 
