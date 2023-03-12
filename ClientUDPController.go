@@ -120,23 +120,28 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 func (c *TFTPProtocol) StartDataClientXfer() (err error) {
 	var dataPack tftp.Data
 	var errPack tftp.Error
-
+	var v int
 	pckBfr := make([]byte, c.blockSize+4)
-	dataBuffer := make([]byte, 0)
-	n := 0
+	var n uint16
+	n = 0
 	closeXfer := false
 
+	ackPack := tftp.NewAck(0)
+	_, err = c.conn.WriteToUDP(ackPack.ToBytes(), c.raddr)
 	for {
-		n, c.raddr, err = c.conn.ReadFromUDP(pckBfr)
-		pckBfr = pckBfr[:n]
+		v, c.raddr, err = c.conn.ReadFromUDP(pckBfr)
+		pckBfr = pckBfr[:v]
 		opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(pckBfr[:2]))
 		switch opcode {
 		case tftp.TFTPOpcodeDATA:
 			err = dataPack.Parse(pckBfr)
-			copy(dataBuffer, dataPack.Data)
-			ackPack := tftp.NewAck(dataPack.BlockNumber)
-			pckBfr = ackPack.ToBytes()
-			_, err = c.conn.WriteToUDP(pckBfr, c.raddr)
+			if dataPack.BlockNumber == n {
+				c.dataBlocks = append(c.dataBlocks, &dataPack)
+				log.Printf("Received data packet: %d\n", dataPack.BlockNumber)
+				n++
+			}
+			ackPack = tftp.NewAck(n)
+			_, err = c.conn.WriteToUDP(ackPack.ToBytes(), c.raddr)
 		case tftp.TFTPOpcodeERROR:
 			_ = errPack.Parse(pckBfr)
 			err = fmt.Errorf("error packet received... code: %d message: %s\n", errPack.ErrorCode, errPack.ErrorMessage)
