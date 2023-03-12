@@ -25,12 +25,12 @@ func (t Test) Request() {
 		log.Fatal(err)
 	}
 
-	bytes, err := request.Parse(packet)
+	err = request.Parse(packet)
 	if err != nil {
 		return
 	}
 
-	bsize, _ := bytes.ToBytes()
+	bsize, _ := request.ToBytes()
 	log.Printf("Request Packet: %d", len(bsize))
 	TestEncryptDecrypt(bsize)
 }
@@ -107,7 +107,7 @@ func (t Test) Test() {
 	t.Oack()
 }
 
-func xor(data []byte, key []byte) []byte {
+func Xor(data []byte, key []byte) []byte {
 	ciphertext := make([]byte, len(data))
 	for i := 0; i < len(data); i++ {
 		ciphertext[i] = data[i] ^ key[i%len(key)]
@@ -115,7 +115,7 @@ func xor(data []byte, key []byte) []byte {
 	return ciphertext
 }
 
-func decryptXOR(ciphertext []byte, key []byte) []byte {
+func DecryptXOR(ciphertext []byte, key []byte) []byte {
 	plaintext := make([]byte, len(ciphertext))
 	for i := 0; i < len(ciphertext); i++ {
 		plaintext[i] = ciphertext[i] ^ key[i%len(key)]
@@ -130,13 +130,22 @@ func TestEncryptDecrypt(data []byte) {
 		return
 	}
 
-	ciphertext := xor(data, key)
+	ciphertext := Xor(data, key)
 
-	plaintext := decryptXOR(ciphertext, key)
+	plaintext := DecryptXOR(ciphertext, key)
 
 	if string(plaintext) != string(data) {
 		log.Fatal("Error: plaintext != data")
 	} else {
 		log.Printf("Success: plaintext == data")
 	}
+}
+
+func GetRandomKey() []byte {
+	key := make([]byte, 128)
+	_, err := rand.Read(key)
+	if err != nil {
+		return nil
+	}
+	return key
 }

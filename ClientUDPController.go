@@ -28,7 +28,7 @@ type TFTPProtocol struct {
 }
 
 func NewTFTPClient() (*TFTPProtocol, error) {
-	remoteAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:7501")
+	remoteAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:7500")
 	if err != nil {
 		return nil, err
 	}
@@ -46,15 +46,15 @@ func (c *TFTPProtocol) Close() error {
 }
 
 func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
-	packet := make([]byte, 512)
-	// Make a new request packet
-	//BlockSize := 512
-	//WindowSize := 1
-	//PrivateKey := "1234567890123456"
-	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, nil)
+	packet := make([]byte, 516)
+	options := make(map[string][]byte)
+	options["blksize"] = []byte("512")
+	options["key"] = tftp.GetRandomKey()
+
+	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, options)
 	packet, _ = reqPack.ToBytes()
 
-	_, err = c.conn.WriteToUDP(packet, c.raddr)
+	_, err = c.conn.Write(packet)
 	if err != nil {
 		log.Printf("Error sending request packet: %s\n", err)
 		return

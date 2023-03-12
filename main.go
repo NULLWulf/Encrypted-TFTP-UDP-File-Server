@@ -1,15 +1,17 @@
 package main
 
-import "CSC445_Assignment2/tftp"
+import "log"
 
 func main() {
 	// Parse the command line arguments
 	parseProgramArguments()
 	// Run the application in the specified mode
-	tftp.Test{}.Test()
+	//tftp.Test{}.Test()
 	if Mode == "server" {
-		//RunServerMode()
+		log.Printf("Running in server mode\n")
+		RunServerMode()
 	} else {
+		log.Printf("Running in client mode\n")
 		RunClientMode()
 	}
 }
