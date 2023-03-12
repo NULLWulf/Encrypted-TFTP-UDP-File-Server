@@ -18,6 +18,7 @@ func RunClientMode() {
 	}
 }
 
+// t
 func homepage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	log.Println("Serving homepage")
 	http.ServeFile(w, r, "./html/index.html")
