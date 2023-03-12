@@ -3,6 +3,7 @@ package main
 import (
 	"CSC445_Assignment2/tftp"
 	"encoding/binary"
+	"fmt"
 	"log"
 	"net"
 )
@@ -37,7 +38,6 @@ func RunServerMode() {
 }
 
 func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
-
 	code := binary.BigEndian.Uint16(buf[:2])
 	switch tftp.TFTPOpcode(code) {
 	case tftp.TFTPOpcodeRRQ:
@@ -46,14 +46,8 @@ func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
 	case tftp.TFTPOpcodeWRQ:
 		log.Println("Received WRQ")
 		break
-	case tftp.TFTPOpcodeDATA:
-		log.Println("Received DATA")
-		break
 	case tftp.TFTPOpcodeACK:
 		log.Println("Received ACK")
-		break
-	case tftp.TFTPOpcodeERROR:
-		log.Println("Received ERROR")
 		break
 	case tftp.TFTPOpcodeTERM:
 		log.Println("Received TERM, Terminating Transfer...")
@@ -72,24 +66,35 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	var req tftp.Request
 	err := req.Parse(buf)
 	if err != nil {
-		log.Println("Error parsing request:", err)
+		c.sendError(addr, 4, "Illegal TFTP operation")
 		return
 	}
 	log.Printf("Received %d bytes from %s for file %s \n", len(buf), addr, string(req.Filename))
-	req.String()
 	err, img := IQ.AddNewAndReturnImg(string(req.Filename))
-	c.SetProtocolOptions(req.Options, len(img))
 	if err != nil {
-		log.Println("Error adding new image:", err)
+		c.sendError(addr, 10, "File not found")
+		return
+	}
+	c.SetProtocolOptions(req.Options, len(img))
+	opAck := tftp.NewOpt(req.Options, c.xferSize)
+	_, err = c.conn.WriteToUDP(opAck.ToBytes(), addr)
+	if err != nil {
+		log.Println("Error sending data packet:", err)
 		return
 	}
 
-	opAck := tftp.NewOpt(req.Options, c.xferSize)
-	log.Println(opAck.String())
-	ack := opAck.ToBytes()
-	_, err = c.conn.WriteToUDP(ack, addr)
+	c.dataBlocks, err = tftp.PrepareData(img, int(c.blockSize))
 	if err != nil {
-		log.Println("Error sending data packet:", err)
+		return
+	}
+	fmt.Sprintf("Sending %d blocks", len(c.dataBlocks))
+}
+
+func (c *TFTPProtocol) sendError(addr *net.UDPAddr, errCode uint16, errMsg string) {
+	errPack := tftp.NewErr(errCode, []byte(errMsg))
+	_, err := c.conn.WriteToUDP(errPack.ToBytes(), addr)
+	if err != nil {
+		log.Println("Error sending error packet:", err)
 		return
 	}
 }

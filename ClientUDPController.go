@@ -28,6 +28,7 @@ type TFTPProtocol struct {
 	blockSize  uint16
 	windowSize uint16
 	key        []byte
+	dataBlocks []*tftp.Data
 }
 
 func NewTFTPClient() (*TFTPProtocol, error) {
