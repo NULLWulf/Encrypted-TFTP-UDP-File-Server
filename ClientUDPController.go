@@ -88,9 +88,7 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 	// Process OACK packet
 	var oackPack tftp.OptionAcknowledgement
 	err = oackPack.Parse(packet)
-	//c.xferSize, _ = strconv.ParseUint(oackPack.Options["blksize"], 10, 16)
-	// If checks clear, begin sliding window protocol
-	err = c.StartDataClientXfer()
+	err = c.StartDataClientXfer(512)
 	if err != nil {
 		return nil, err
 	}
@@ -98,8 +96,11 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 	return *c.fileData, nil
 }
 
-func (c *TFTPProtocol) StartDataClientXfer() (err error) {
-	pckBfr := make([]byte, 1024)
+func (c *TFTPProtocol) StartDataClientXfer(blocksize uint32) (err error) {
+	var dataPack tftp.Data
+	var errPack tftp.Error
+
+	pckBfr := make([]byte, blocksize+4)
 	dataBuffer := *c.fileData
 	dataBuffer = make([]byte, 0)
 	n := 0
@@ -111,14 +112,12 @@ func (c *TFTPProtocol) StartDataClientXfer() (err error) {
 		opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(pckBfr[:2]))
 		switch opcode {
 		case tftp.TFTPOpcodeDATA:
-			var dataPack tftp.Data
 			err = dataPack.Parse(pckBfr)
-			dataBuffer = append(dataBuffer, dataPack.Data...)
+			copy(dataBuffer, dataPack.Data)
 			ackPack := tftp.NewAck(dataPack.BlockNumber)
 			pckBfr = ackPack.ToBytes()
 			_, err = c.conn.WriteToUDP(pckBfr, c.raddr)
 		case tftp.TFTPOpcodeERROR:
-			var errPack tftp.Error
 			_ = errPack.Parse(pckBfr)
 			err = fmt.Errorf("error packet received... code: %d message: %s\n", errPack.ErrorCode, errPack.ErrorMessage)
 			closeXfer = true

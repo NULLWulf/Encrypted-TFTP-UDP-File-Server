@@ -1,6 +1,9 @@
 package tftp
 
-import "log"
+import (
+	"crypto/rand"
+	"log"
+)
 
 type Test struct {
 }
@@ -29,6 +32,7 @@ func (t Test) Request() {
 
 	bsize, _ := bytes.ToBytes()
 	log.Printf("Request Packet: %d", len(bsize))
+	TestEncryptDecrypt(bsize)
 }
 
 func (t Test) Data() {
@@ -45,6 +49,8 @@ func (t Test) Data() {
 
 	bsize := data2.ToBytes()
 	log.Printf("Data Packet: %d", len(bsize))
+	TestEncryptDecrypt(bsize)
+
 }
 
 func (t Test) Error() {
@@ -58,6 +64,7 @@ func (t Test) Error() {
 	}
 	bsize := err2.ToBytes()
 	log.Printf("Error Packet: %d", len(bsize))
+	TestEncryptDecrypt(bsize)
 }
 
 func (t Test) Ack() {
@@ -70,6 +77,8 @@ func (t Test) Ack() {
 	}
 	bsize := ack2.ToBytes()
 	log.Printf("Ack Packet: %d", len(bsize))
+	TestEncryptDecrypt(bsize)
+
 }
 
 func (t Test) Oack() {
@@ -86,6 +95,8 @@ func (t Test) Oack() {
 	}
 	bsize := oack2.ToBytes()
 	log.Printf("Oack Packet: %d", len(bsize))
+	TestEncryptDecrypt(bsize)
+
 }
 
 func (t Test) Test() {
@@ -94,4 +105,38 @@ func (t Test) Test() {
 	t.Error()
 	t.Ack()
 	t.Oack()
+}
+
+func xor(data []byte, key []byte) []byte {
+	ciphertext := make([]byte, len(data))
+	for i := 0; i < len(data); i++ {
+		ciphertext[i] = data[i] ^ key[i%len(key)]
+	}
+	return ciphertext
+}
+
+func decryptXOR(ciphertext []byte, key []byte) []byte {
+	plaintext := make([]byte, len(ciphertext))
+	for i := 0; i < len(ciphertext); i++ {
+		plaintext[i] = ciphertext[i] ^ key[i%len(key)]
+	}
+	return plaintext
+}
+
+func TestEncryptDecrypt(data []byte) {
+	key := make([]byte, 128)
+	_, err := rand.Read(key)
+	if err != nil {
+		return
+	}
+
+	ciphertext := xor(data, key)
+
+	plaintext := decryptXOR(ciphertext, key)
+
+	if string(plaintext) != string(data) {
+		log.Fatal("Error: plaintext != data")
+	} else {
+		log.Printf("Success: plaintext == data")
+	}
 }

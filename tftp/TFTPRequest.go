@@ -89,10 +89,10 @@ func (r *Request) ToBytes() ([]byte, error) {
 	// Construct the request packet
 	var optionsString []byte
 	for key, value := range r.Options {
-		optionsString = append(optionsString, []byte(key)...)
-		optionsString = append(optionsString, 0)
-		optionsString = append(optionsString, value...)
-		optionsString = append(optionsString, 0)
+		copy(optionsString, key)
+		copy(optionsString, "\x00")
+		copy(optionsString, value)
+		copy(optionsString, "\x00")
 	}
 	packet := make([]byte, len(r.Filename)+1+len(r.Mode)+1+len(optionsString)+2)
 	copy(packet, r.Filename)
