@@ -1,7 +1,6 @@
 package main
 
 import (
-	"CSC445_Assignment2/tftp"
 	"log"
 )
 
@@ -11,7 +10,7 @@ func main() {
 	// Parse the command line arguments
 	parseProgramArguments()
 	// Run the application in the specified mode
-	tftp.Test{}.Test()
+	//tftp.Test{}.Test()
 	if Mode == "server" {
 		IQ = NewImageQueueObj()
 		log.Printf("Running in server mode\n")

@@ -11,7 +11,11 @@ type OptionAcknowledgement struct {
 	Options map[string][]byte
 }
 
-func NewOpt(options map[string][]byte) *OptionAcknowledgement {
+func NewOpt(options map[string][]byte, xfer uint32) *OptionAcknowledgement {
+	if xfer != 0 {
+		options["tsize"] = make([]byte, 4)
+		binary.BigEndian.PutUint32(options["tsize"], uint32(xfer))
+	}
 	return &OptionAcknowledgement{
 		Opcode:  TFTPOpcodeOACK,
 		Options: options,
@@ -44,6 +48,10 @@ func (oack *OptionAcknowledgement) ToBytes() []byte {
 }
 
 func (oack *OptionAcknowledgement) Parse(packet []byte) error {
+	if len(packet) < 2 {
+		return fmt.Errorf("packet too short")
+	}
+
 	// Extract the opcode from the first two bytes of the packet.
 	oack.Opcode = TFTPOpcode(binary.BigEndian.Uint16(packet[:2]))
 
@@ -61,18 +69,32 @@ func (oack *OptionAcknowledgement) Parse(packet []byte) error {
 		// Move past the null byte to the start of the value.
 		optionBytes = optionBytes[nullIndex+1:]
 
-		// Find the next null byte to split the option value and the next option name.
-		nullIndex = bytes.IndexByte(optionBytes, 0)
-		if nullIndex < 0 {
-			return fmt.Errorf("invalid option: %v", optionBytes)
+		if len(optionBytes) == 0 {
+			return fmt.Errorf("invalid option: %v", packet)
 		}
-		value := string(optionBytes[:nullIndex])
 
-		// Move past the null byte to the start of the next option name.
-		optionBytes = optionBytes[nullIndex+1:]
+		// Find the length of the option value.
+		valueLen := bytes.IndexByte(optionBytes, 0)
+		if valueLen < 0 {
+			valueLen = len(optionBytes)
+		}
 
-		oack.Options[name] = []byte(value)
+		value := make([]byte, valueLen)
+		copy(value, optionBytes[:valueLen])
+
+		// Move past the null byte and the option value to the start of the next option name.
+		optionBytes = optionBytes[valueLen+1:]
+
+		oack.Options[name] = value
 	}
 
 	return nil
+}
+
+func (oa *OptionAcknowledgement) String() string {
+	var optionsStr string
+	for k, v := range oa.Options {
+		optionsStr += k + "=" + string(v) + ","
+	}
+	return fmt.Sprintf("OptionAcknowledgement{ Opcode: %v, Options: {%s} }", oa.Opcode, optionsStr)
 }

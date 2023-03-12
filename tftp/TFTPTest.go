@@ -13,8 +13,11 @@ func (t Test) Request() {
 	// Create a new request packet
 	// random byte key
 	optMap := make(map[string][]byte)
-	optMap["key"] = []byte("akjhlk;ashdjfh1394uy49r82y3984fhuihjasjkhdf")
 	optMap["door"] = []byte("door")
+
+	optMap["key"] = GetRandomKey()
+	optMap["blksize"] = []byte("512")
+
 	request, err := NewReq([]byte("test.txt"), []byte("octet"), 512, optMap)
 	if err != nil {
 		log.Fatal(err)
@@ -84,9 +87,9 @@ func (t Test) Ack() {
 func (t Test) Oack() {
 	options := make(map[string][]byte)
 	options["blksize"] = []byte("512")
-	options["key"] = []byte("akjhlk;ashdjfh1394uy49r82y3984fhuihjasjkhdf")
-	options["door"] = []byte("door")
-	oack := NewOpt(options)
+	options["key"] = GetRandomKey()
+	options["tsize"] = []byte("5000")
+	oack := NewOpt(options, 0)
 	packet := oack.ToBytes()
 	var oack2 OptionAcknowledgement
 	err := oack2.Parse(packet)
@@ -96,7 +99,7 @@ func (t Test) Oack() {
 	bsize := oack2.ToBytes()
 	log.Printf("Oack Packet: %d", len(bsize))
 	TestEncryptDecrypt(bsize)
-
+	log.Println(oack.String())
 }
 
 func (t Test) Test() {

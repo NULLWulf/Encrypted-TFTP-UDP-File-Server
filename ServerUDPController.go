@@ -23,7 +23,6 @@ func (c *TFTPProtocol) handleConnectionUDP() {
 			c.handleRequest(raddr, msg)
 		}
 	}()
-
 }
 
 func RunServerMode() {
@@ -33,7 +32,7 @@ func RunServerMode() {
 		return
 	}
 	defer udpServer.Close()
-	go udpServer.handleConnectionUDP() // launch in separate goroutine
+	udpServer.handleConnectionUDP() // launch in separate goroutine
 	select {}
 }
 
@@ -42,28 +41,7 @@ func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
 	code := binary.BigEndian.Uint16(buf[:2])
 	switch tftp.TFTPOpcode(code) {
 	case tftp.TFTPOpcodeRRQ:
-		log.Println("Received RRQ")
-		var req tftp.Request
-		err := req.Parse(buf)
-		if err != nil {
-			log.Println("Error parsing request:", err)
-			return
-		}
-		log.Printf("Received %d bytes from %s for file %s \n", string(buf), addr, string(req.Filename))
-		err, img := IQ.AddNewAndReturnImg(string(req.Filename))
-		if err != nil {
-			log.Println("Error adding new image:", err)
-			return
-		}
-		log.Printf("Sending %d bytes to %s for file %s \n", len(img), addr, string(req.Filename))
-		// Encode the Person struct as JSON.
-		//dataPack, _ := tftp.NewData(0, img)
-		//packet := dataPack.ToBytes()
-		_, err = c.conn.WriteToUDP(img, addr)
-		if err != nil {
-			log.Println("Error sending data packet:", err)
-			return
-		}
+		c.handleRRQ(addr, buf)
 		break
 	case tftp.TFTPOpcodeWRQ:
 		log.Println("Received WRQ")
@@ -78,9 +56,40 @@ func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
 		log.Println("Received ERROR")
 		break
 	case tftp.TFTPOpcodeTERM:
-		log.Println("Received TERM")
-		break
+		log.Println("Received TERM, Terminating Transfer...")
+		return
 	default:
 
+	}
+}
+
+func (c *TFTPProtocol) SetTransferSize(size uint32) {
+	c.xferSize = size
+}
+
+func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
+	log.Println("Received RRQ")
+	var req tftp.Request
+	err := req.Parse(buf)
+	if err != nil {
+		log.Println("Error parsing request:", err)
+		return
+	}
+	log.Printf("Received %d bytes from %s for file %s \n", len(buf), addr, string(req.Filename))
+	req.String()
+	err, img := IQ.AddNewAndReturnImg(string(req.Filename))
+	c.SetProtocolOptions(req.Options, len(img))
+	if err != nil {
+		log.Println("Error adding new image:", err)
+		return
+	}
+
+	opAck := tftp.NewOpt(req.Options, c.xferSize)
+	log.Println(opAck.String())
+	ack := opAck.ToBytes()
+	_, err = c.conn.WriteToUDP(ack, addr)
+	if err != nil {
+		log.Println("Error sending data packet:", err)
+		return
 	}
 }

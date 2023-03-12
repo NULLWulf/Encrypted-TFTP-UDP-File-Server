@@ -24,9 +24,10 @@ type TFTPProtocol struct {
 	conn       *net.UDPConn
 	raddr      *net.UDPAddr
 	fileData   *[]byte
-	xferSize   uint64
+	xferSize   uint32
 	blockSize  uint16
 	windowSize uint16
+	key        []byte
 }
 
 func NewTFTPClient() (*TFTPProtocol, error) {
@@ -65,7 +66,7 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, options)
 	packet, _ = reqPack.ToBytes()
-
+	c.SetProtocolOptions(options, 0)
 	_, err = c.conn.Write(packet)
 	if err != nil {
 		log.Printf("Error sending request packet: %s\n", err)
@@ -75,7 +76,6 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 	n, _, err := c.conn.ReadFromUDP(packet)
 	packet = packet[:n]
 	fmt.Println("Length of packet: ", len(packet))
-	return packet, err
 	opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(packet[:2]))
 	if err != nil {
 		log.Printf("Error reading reply from UDP server: %s\n", err)
@@ -102,7 +102,13 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 	// Process OACK packet
 	var oackPack tftp.OptionAcknowledgement
 	err = oackPack.Parse(packet)
-	err = c.StartDataClientXfer(512)
+
+	if tsizeBytes, ok := oackPack.Options["tsize"]; ok && c.xferSize == 0 {
+		c.SetTransferSize(binary.BigEndian.Uint32(tsizeBytes))
+	}
+
+	log.Printf(oackPack.String())
+	err = c.StartDataClientXfer()
 	if err != nil {
 		return nil, err
 	}
@@ -110,13 +116,12 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 	return *c.fileData, nil
 }
 
-func (c *TFTPProtocol) StartDataClientXfer(blocksize uint32) (err error) {
+func (c *TFTPProtocol) StartDataClientXfer() (err error) {
 	var dataPack tftp.Data
 	var errPack tftp.Error
 
-	pckBfr := make([]byte, blocksize+4)
-	dataBuffer := *c.fileData
-	dataBuffer = make([]byte, 0)
+	pckBfr := make([]byte, c.blockSize+4)
+	dataBuffer := make([]byte, 0)
 	n := 0
 	closeXfer := false
 
@@ -148,4 +153,22 @@ func (c *TFTPProtocol) StartDataClientXfer(blocksize uint32) (err error) {
 	}
 
 	return
+}
+
+func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
+	if l != 0 {
+		c.SetTransferSize(uint32(l))
+	}
+	if options["tsize"] != nil && c.xferSize == 0 {
+		c.SetTransferSize(binary.BigEndian.Uint32(options["tsize"]))
+	}
+	if options["blksize"] != nil {
+		c.blockSize = binary.BigEndian.Uint16(options["blksize"])
+	}
+	if options["windowsize"] != nil {
+		c.windowSize = binary.BigEndian.Uint16(options["windowsize"])
+	}
+	if options["key"] != nil {
+		c.key = options["key"]
+	}
 }
