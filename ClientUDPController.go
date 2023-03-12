@@ -21,10 +21,12 @@ import (
 )
 
 type TFTPProtocol struct {
-	conn     *net.UDPConn
-	raddr    *net.UDPAddr
-	fileData *[]byte
-	xferSize uint64
+	conn       *net.UDPConn
+	raddr      *net.UDPAddr
+	fileData   *[]byte
+	xferSize   uint64
+	blockSize  uint16
+	windowSize uint16
 }
 
 func NewTFTPClient() (*TFTPProtocol, error) {
@@ -39,6 +41,16 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 	}
 
 	return &TFTPProtocol{conn: conn, raddr: remoteAddr, xferSize: 0}, nil
+}
+
+func NewTFTPServer() (*TFTPProtocol, error) {
+	addr := &net.UDPAddr{IP: net.IPv4zero, Port: Port}
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		log.Println("Error starting server:", err)
+		return nil, err
+	}
+	return &TFTPProtocol{conn: conn, raddr: addr}, nil
 }
 
 func (c *TFTPProtocol) Close() error {
@@ -62,6 +74,8 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 
 	n, _, err := c.conn.ReadFromUDP(packet)
 	packet = packet[:n]
+	fmt.Println("Length of packet: ", len(packet))
+	return packet, err
 	opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(packet[:2]))
 	if err != nil {
 		log.Printf("Error reading reply from UDP server: %s\n", err)

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 )
 
 type Request struct {
@@ -16,108 +17,57 @@ type Request struct {
 	WindowSize   uint16
 }
 
-//func (r *Request) Parse(packet []byte) error {
-//	// Check that the packet is at least 2 bytes long
-//	if len(packet) < 2 {
-//		return errors.New("packet too short")
-//	}
-//
-//	// Check that the opcode is valid
-//	opcode := binary.BigEndian.Uint16(packet[:2])
-//	if opcode != uint16(TFTPOpcodeRRQ) {
-//		return errors.New("invalid opcode")
-//	}
-//
-//	// Parse the filename and mode
-//	nullIndex := bytes.IndexByte(packet[2:], 0)
-//	if nullIndex < 0 {
-//		return errors.New("filename not null-terminated")
-//	}
-//	filename := packet[2 : 2+nullIndex]
-//	modeStartIndex := 2 + nullIndex + 1
-//	nullIndex = bytes.IndexByte(packet[modeStartIndex:], 0)
-//	if nullIndex < 0 {
-//		return errors.New("mode not null-terminated")
-//	}
-//	mode := packet[modeStartIndex : modeStartIndex+nullIndex]
-//
-//	// Parse the options
-//	options := make(map[string][]byte)
-//	if nullIndex+modeStartIndex+1 < len(packet) {
-//		optionsBytes := packet[nullIndex+modeStartIndex+1:]
-//		for len(optionsBytes) > 0 {
-//			// Find the next null byte to split the option name and value.
-//			nullIndex := bytes.IndexByte(optionsBytes, 0)
-//			if nullIndex < 0 {
-//				return fmt.Errorf("invalid option: %v", optionsBytes)
-//			}
-//			name := optionsBytes[:nullIndex]
-//
-//			// Move past the null byte to the start of the value.
-//			optionsBytes = optionsBytes[nullIndex+1:]
-//
-//			// Find the next null byte to split the option value and the next option name.
-//			nullIndex = bytes.IndexByte(optionsBytes, 0)
-//			if nullIndex < 0 {
-//				return fmt.Errorf("invalid option: %v", optionsBytes)
-//			}
-//			value := optionsBytes[:nullIndex]
-//
-//			// Move past the null byte to the start of the next option name.
-//			optionsBytes = optionsBytes[nullIndex+1:]
-//
-//			options[string(name)] = value
-//		}
-//	}
-//
-//	r.Opcode = TFTPOpcode(opcode)
-//	r.Filename = filename
-//	r.Mode = mode
-//	r.Options = options
-//	//if transferSize, ok := options["tsize"]; ok {
-//	//	r.TransferSize = binary.BigEndian.Uint16(transferSize)
-//	//}
-//	//if windowSize, ok := options["windowsize"]; ok {
-//	//	r.WindowSize = binary.BigEndian.Uint16(windowSize)
-//	//}
-//	//if transferSize, ok := options["blksize"]; ok {
-//	//	r.Blocksize = binary.BigEndian.Uint16(transferSize)
-//	//}
-//
-//	return nil
-//}
-
+func (r *Request) Parse(p []byte) error {
+	bs := bytes.Split(p[2:], []byte{0})
+	if len(bs) < 2 {
+		return fmt.Errorf("missing filename or mode")
+	}
+	r.Filename = bs[0]
+	r.Mode = bs[1]
+	if len(bs) < 4 {
+		return nil
+	}
+	r.Options = make(map[string][]byte)
+	for i := 2; i+1 < len(bs); i += 2 {
+		r.Options[string(bs[i])] = bs[i+1]
+	}
+	return nil
+}
 func (r *Request) ToBytes() ([]byte, error) {
 	// Check that the filename is not empty
-	if r.Filename == nil || string(r.Filename) == "" {
-		return nil, errors.New("filename is empty")
+	if len(r.Filename) == 0 {
+		return nil, errors.New("empty filename")
 	}
 
 	// Construct the request packet
-	var optionsString []byte
+	var packet []byte
+	packet = append(packet, byte(r.Opcode>>8), byte(r.Opcode))
+	packet = append(packet, r.Filename...)
+	packet = append(packet, 0)
+	packet = append(packet, r.Mode...)
+	packet = append(packet, 0)
 	for key, value := range r.Options {
-		copy(optionsString, key)
-		copy(optionsString, "\x00")
-		copy(optionsString, value)
-		copy(optionsString, "\x00")
+		packet = append(packet, []byte(key)...)
+		packet = append(packet, 0)
+		packet = append(packet, value...)
+		packet = append(packet, 0)
 	}
-	packet := make([]byte, len(r.Filename)+1+len(r.Mode)+1+len(optionsString)+2)
-	copy(packet, r.Filename)
-	packet[len(r.Filename)] = 0
-	copy(packet[len(r.Filename)+1:], r.Mode)
-	packet[len(r.Filename)+1+len(r.Mode)] = 0
-	copy(packet[len(r.Filename)+1+len(r.Mode)+1:], optionsString)
-	packet[len(packet)-2] = 0
-
-	// Set the opcode based on whether transfer size is specified
 	if r.TransferSize > 0 {
-		binary.BigEndian.PutUint16(packet[:2], uint16(TFTPOpcodeWRQ))
-		binary.BigEndian.PutUint16(packet[len(packet)-2-4:], r.TransferSize)
-	} else {
-		binary.BigEndian.PutUint16(packet[:2], uint16(TFTPOpcodeRRQ))
+		packet = append(packet, []byte("tsize")...)
+		packet = append(packet, 0)
+		sizeBytes := make([]byte, 2)
+		binary.BigEndian.PutUint16(sizeBytes, r.TransferSize)
+		packet = append(packet, sizeBytes...)
+		packet = append(packet, 0)
 	}
-
-	// Return the request packet
+	if r.WindowSize > 0 {
+		packet = append(packet, []byte("windowsize")...)
+		packet = append(packet, 0)
+		sizeBytes := make([]byte, 2)
+		binary.BigEndian.PutUint16(sizeBytes, r.WindowSize)
+		packet = append(packet, sizeBytes...)
+		packet = append(packet, 0)
+	}
 	return packet, nil
 }
 
@@ -150,4 +100,17 @@ func NewReq(filename []byte, mode []byte, transferSize uint32, options map[strin
 		Options:  options,
 	}
 	return request, nil
+}
+
+func (r *Request) String() {
+	var optionsString string
+	for key, value := range r.Options {
+		optionsString += fmt.Sprintf("%s=%s,", key, value)
+	}
+	if len(optionsString) > 0 {
+		optionsString = optionsString[:len(optionsString)-1]
+	}
+
+	log.Printf("Opcode=%d, Filename=%s, Mode=%s, Options={%s}, TransferSize=%d, WindowSize=%d\n",
+		r.Opcode, r.Filename, r.Mode, optionsString, r.TransferSize, r.WindowSize)
 }

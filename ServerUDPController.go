@@ -3,49 +3,44 @@ package main
 import (
 	"CSC445_Assignment2/tftp"
 	"encoding/binary"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net"
 )
 
 // handleConnectipnUDP handles a single udp "connection"
-func handleConnectionUDP(conn *net.UDPConn) {
+func (c *TFTPProtocol) handleConnectionUDP() {
 	buf := make([]byte, 1024)
-	for {
-		// read message
-		n, raddr, err := conn.ReadFromUDP(buf)
-		if err != nil {
-			log.Println("Error reading message:", err)
-			continue
+	go func() {
+		for {
+			// read message
+			n, raddr, err := c.conn.ReadFromUDP(buf)
+			if err != nil {
+				log.Println("Error reading message:", err)
+				continue
+			}
+			// decode message
+			msg := buf[:n]
+			c.handleRequest(raddr, msg)
 		}
-		// decode message
-		msg := buf[:n]
-		handleRequest(conn, raddr, msg)
-	}
+	}()
+
 }
 
 func RunServerMode() {
-	addr := &net.UDPAddr{IP: net.IPv4zero, Port: Port}
-	conn, err := net.ListenUDP("udp", addr)
+	udpServer, err := NewTFTPServer()
 	if err != nil {
-		log.Println("Error starting server:", err)
+		log.Println("Error creating server:", err)
 		return
 	}
-	defer func(conn *net.UDPConn) {
-		err := conn.Close()
-		if err != nil {
-			log.Println("Error closing the connection:", err)
-		}
-	}(conn)
-
-	log.Printf("Server listening on: %s\n", addr)
-
-	handleConnectionUDP(conn)
+	defer udpServer.Close()
+	go udpServer.handleConnectionUDP() // launch in separate goroutine
+	select {}
 }
 
-func handleRequest(conn *net.UDPConn, addr *net.UDPAddr, buf []byte) {
-	switch tftp.TFTPOpcode(binary.BigEndian.Uint16(buf[:2])) {
+func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
+
+	code := binary.BigEndian.Uint16(buf[:2])
+	switch tftp.TFTPOpcode(code) {
 	case tftp.TFTPOpcodeRRQ:
 		log.Println("Received RRQ")
 		var req tftp.Request
@@ -54,16 +49,21 @@ func handleRequest(conn *net.UDPConn, addr *net.UDPAddr, buf []byte) {
 			log.Println("Error parsing request:", err)
 			return
 		}
-		// Encode the Person struct as JSON.
-		log.Println(string(req.Filename))
-		jsonBytes, err := json.Marshal(req)
+		log.Printf("Received %d bytes from %s for file %s \n", string(buf), addr, string(req.Filename))
+		err, img := IQ.AddNewAndReturnImg(string(req.Filename))
 		if err != nil {
-			fmt.Println("Error encoding JSON:", err)
+			log.Println("Error adding new image:", err)
 			return
 		}
-		// Print the JSON as a string.
-		fmt.Println(string(jsonBytes))
-
+		log.Printf("Sending %d bytes to %s for file %s \n", len(img), addr, string(req.Filename))
+		// Encode the Person struct as JSON.
+		//dataPack, _ := tftp.NewData(0, img)
+		//packet := dataPack.ToBytes()
+		_, err = c.conn.WriteToUDP(img, addr)
+		if err != nil {
+			log.Println("Error sending data packet:", err)
+			return
+		}
 		break
 	case tftp.TFTPOpcodeWRQ:
 		log.Println("Received WRQ")
