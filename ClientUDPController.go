@@ -77,25 +77,25 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 	n, _, err := c.conn.ReadFromUDP(packet)
 	packet = packet[:n]
 	fmt.Println("Length of packet: ", len(packet))
-	opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(packet[:2]))
+	opcode := binary.BigEndian.Uint16(packet[:2])
 	if err != nil {
 		log.Printf("Error reading reply from UDP server: %s\n", err)
 		return
 	}
 
-	if opcode == tftp.TFTPOpcodeERROR {
+	if opcode == 5 {
 		//process error packet
 		var errPack tftp.Error
-		err := errPack.Parse(packet)
-		if err != nil {
-			errSt := fmt.Sprintf("error packet received... code: %d message: %s\n", errPack.ErrorCode, errPack.ErrorMessage)
-			log.Println(errSt)
-			return nil, errors.New(errSt)
-		}
+		_ = errPack.Parse(packet)
+
+		errSt := fmt.Sprintf("error packet received... code: %d message: %s\n", errPack.ErrorCode, errPack.ErrorMessage)
+		log.Println(errSt)
+		return nil, errors.New(errSt)
+
 	}
 
-	if opcode != tftp.TFTPOpcodeOACK {
-		errSt := fmt.Sprintf("returned packet opcode is neither OACK or ACK.. opcode: %d packet_t: %s\n", opcode, opcode.String())
+	if opcode != 1 {
+		errSt := fmt.Sprintf("returned packet opcode is neither OACK or ACK.. opcode: %d packet_t: %s\n", opcode, "nvm")
 		log.Println(errSt)
 		return nil, errors.New(errSt)
 	}

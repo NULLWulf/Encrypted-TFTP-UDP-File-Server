@@ -5,13 +5,13 @@ import "encoding/binary"
 type TFTPOpcode uint16
 
 const (
-	TFTPOpcodeRRQ   TFTPOpcode = 01
-	TFTPOpcodeWRQ   TFTPOpcode = 02
-	TFTPOpcodeDATA  TFTPOpcode = 03
-	TFTPOpcodeACK   TFTPOpcode = 04
-	TFTPOpcodeERROR TFTPOpcode = 05
-	TFTPOpcodeOACK  TFTPOpcode = 06
-	__tftUnused     TFTPOpcode = 07
+	TFTPOpcodeRRQ   TFTPOpcode = 1
+	TFTPOpcodeWRQ   TFTPOpcode = 2
+	TFTPOpcodeDATA  TFTPOpcode = 3
+	TFTPOpcodeACK   TFTPOpcode = 4
+	TFTPOpcodeERROR TFTPOpcode = 5
+	TFTPOpcodeOACK  TFTPOpcode = 6
+	__tftUnused     TFTPOpcode = 7
 	TFTPOpcodeTERM  TFTPOpcode = 8
 )
 
