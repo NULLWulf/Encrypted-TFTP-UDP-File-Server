@@ -43,8 +43,8 @@ func HandlePacket(packet []byte) {
 		// Handle write request
 	case TFTPOpcodeDATA:
 		// Handle data packet
-	case TFTPOpcodeACK:
 		// Handle acknowledgement packet
+	case TFTPOpcodeACK:
 		// Handle error packet
 	case TFTPOpcodeERROR:
 		// Handle error packet

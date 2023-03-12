@@ -7,17 +7,16 @@ import (
 	"fmt"
 )
 
-// TFTPRequest represents a TFTP read or write request packet.
-type TFTPRequest struct {
+type Request struct {
 	Opcode       TFTPOpcode
 	Filename     []byte
 	Mode         []byte
-	Options      map[string]string
+	Options      map[string][]byte
 	TransferSize uint32
 	WindowSize   uint16
 }
 
-func ReadFromBytes(packet []byte) (*TFTPRequest, error) {
+func (r *Request) Parse(packet []byte) (*Request, error) {
 	// Check that the packet is at least 2 bytes long
 	if len(packet) < 2 {
 		return nil, errors.New("packet too short")
@@ -43,7 +42,7 @@ func ReadFromBytes(packet []byte) (*TFTPRequest, error) {
 	mode := packet[modeStartIndex : modeStartIndex+nullIndex]
 
 	// Parse the options
-	options := make(map[string]string)
+	options := make(map[string][]byte)
 	if nullIndex+modeStartIndex+1 < len(packet) {
 		optionsBytes := packet[nullIndex+modeStartIndex+1:]
 		for len(optionsBytes) > 0 {
@@ -67,12 +66,12 @@ func ReadFromBytes(packet []byte) (*TFTPRequest, error) {
 			// Move past the null byte to the start of the next option name.
 			optionsBytes = optionsBytes[nullIndex+1:]
 
-			options[string(name)] = string(value)
+			options[string(name)] = value
 		}
 	}
 
 	// Construct and return the read request packet
-	request := &TFTPRequest{
+	request := &Request{
 		Opcode:   TFTPOpcodeRRQ,
 		Filename: filename,
 		Mode:     mode,
@@ -81,16 +80,19 @@ func ReadFromBytes(packet []byte) (*TFTPRequest, error) {
 	return request, nil
 }
 
-func (r *TFTPRequest) ToBytes() ([]byte, error) {
+func (r *Request) ToBytes() ([]byte, error) {
 	// Check that the filename is not empty
 	if r.Filename == nil || string(r.Filename) == "" {
 		return nil, errors.New("filename is empty")
 	}
 
 	// Construct the request packet
-	var optionsString string
+	var optionsString []byte
 	for key, value := range r.Options {
-		optionsString += key + "\x00" + value + "\x00"
+		optionsString = append(optionsString, []byte(key)...)
+		optionsString = append(optionsString, 0)
+		optionsString = append(optionsString, value...)
+		optionsString = append(optionsString, 0)
 	}
 	packet := make([]byte, len(r.Filename)+1+len(r.Mode)+1+len(optionsString)+2)
 	copy(packet, r.Filename)
@@ -112,7 +114,7 @@ func (r *TFTPRequest) ToBytes() ([]byte, error) {
 	return packet, nil
 }
 
-func NewTFTPRequest(filename []byte, mode []byte, transferSize uint32, options map[string]string) (*TFTPRequest, error) {
+func NewReq(filename []byte, mode []byte, transferSize uint32, options map[string][]byte) (*Request, error) {
 	// Check that the filename is not empty
 	if filename == nil || string(filename) == "" {
 		return nil, errors.New("filename is empty")
@@ -125,13 +127,16 @@ func NewTFTPRequest(filename []byte, mode []byte, transferSize uint32, options m
 	var opcode uint16
 	if transferSize > 0 {
 		opcode = uint16(TFTPOpcodeWRQ)
-		options["tsize"] = fmt.Sprintf("%d", transferSize)
+		if options == nil {
+			options = make(map[string][]byte)
+		}
+		options["tsize"] = []byte(fmt.Sprintf("%d", transferSize))
 	} else {
 		opcode = uint16(TFTPOpcodeRRQ)
 	}
 
 	// Construct and return the TFTPRequest struct
-	request := &TFTPRequest{
+	request := &Request{
 		Opcode:   TFTPOpcode(opcode),
 		Filename: filename,
 		Mode:     mode,

@@ -7,18 +7,13 @@ import (
 )
 
 // TFTPData represents a TFTP data packet.
-type TFTPData struct {
+type Data struct {
 	Opcode      TFTPOpcode
 	BlockNumber uint16
 	Data        []byte
 }
 
-func (d *TFTPData) ToBytes() ([]byte, error) {
-	// Check that the data is not empty
-	if len(d.Data) == 0 {
-		return nil, errors.New("data is empty")
-	}
-
+func (d *Data) ToBytes() []byte {
 	// Construct the data packet
 	packet := make([]byte, 2+2+len(d.Data))
 	binary.BigEndian.PutUint16(packet[:2], uint16(TFTPOpcodeDATA))
@@ -26,10 +21,10 @@ func (d *TFTPData) ToBytes() ([]byte, error) {
 	copy(packet[4:], d.Data)
 
 	// Return the data packet
-	return packet, nil
+	return packet
 }
 
-func (d *TFTPData) ReadFromBytes(packet []byte) error {
+func (d *Data) Parse(packet []byte) error {
 	// Check that the packet is at least 4 bytes long
 	if len(packet) < 4 {
 		return errors.New("packet too short")
@@ -52,14 +47,14 @@ func (d *TFTPData) ReadFromBytes(packet []byte) error {
 	return nil
 }
 
-func NewTFTPData(blockNumber uint16, data []byte) (*TFTPData, error) {
+func NewData(blockNumber uint16, data []byte) (*Data, error) {
 	// Check that the data is not empty
 	if len(data) == 0 {
 		return nil, errors.New("data is empty")
 	}
 
 	// Construct and return the TFTPData struct
-	dataPacket := &TFTPData{
+	dataPacket := &Data{
 		Opcode:      TFTPOpcodeDATA,
 		BlockNumber: blockNumber,
 		Data:        data,
@@ -67,14 +62,14 @@ func NewTFTPData(blockNumber uint16, data []byte) (*TFTPData, error) {
 	return dataPacket, nil
 }
 
-func PrepareTFTPDataPackets(data []byte, blockSize int) (dataQueue []*TFTPData, err error) {
+func PrepareData(data []byte, blockSize int) (dataQueue []*Data, err error) {
 	// Create a slice of TFTPData packets
 	blocks := len(data) / blockSize
 	log.Printf("Length of data: %d, Block size: %d, Blocks: %d", len(data), blockSize, blocks)
 	if len(data)%blockSize != 0 {
 		blocks++
 	}
-	dataQueue = make([]*TFTPData, blocks)
+	dataQueue = make([]*Data, blocks)
 
 	// Populate the slice with TFTPData packets
 	for i := 0; i < blocks; i++ {
@@ -86,7 +81,7 @@ func PrepareTFTPDataPackets(data []byte, blockSize int) (dataQueue []*TFTPData, 
 		}
 
 		// Create the TFTPData packet
-		dataQueue[i], err = NewTFTPData(uint16(i+1), data[start:end])
+		dataQueue[i], err = NewData(uint16(i+1), data[start:end])
 		if err != nil {
 			return
 		}

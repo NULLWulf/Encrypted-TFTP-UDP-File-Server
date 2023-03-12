@@ -6,28 +6,25 @@ import (
 	"fmt"
 )
 
-// TFTPOptionAcknowledgement represents a TFTP option acknowledgement packet.
-type TFTPOptionAcknowledgement struct {
+type OptionAcknowledgement struct {
 	Opcode  TFTPOpcode
-	Options map[string]string
+	Options map[string][]byte
 }
 
-// NewTFTPOptionAcknowledgement creates a new TFTPOptionAcknowledgement object with the given options.
-func NewTFTPOptionAcknowledgement(options map[string]string) *TFTPOptionAcknowledgement {
-	return &TFTPOptionAcknowledgement{
+func NewOpt(options map[string][]byte) *OptionAcknowledgement {
+	return &OptionAcknowledgement{
 		Opcode:  TFTPOpcodeOACK,
 		Options: options,
 	}
 }
 
-// ToBytes converts a TFTPOptionAcknowledgement packet to a byte slice.
-func (oack *TFTPOptionAcknowledgement) ToBytes() ([]byte, error) {
+func (oack *OptionAcknowledgement) ToBytes() []byte {
 	// Create a byte buffer to store the options.
 	var buf bytes.Buffer
 	for k, v := range oack.Options {
 		buf.WriteString(k)
 		buf.WriteByte(0)
-		buf.WriteString(v)
+		buf.Write(v)
 		buf.WriteByte(0)
 	}
 
@@ -43,16 +40,15 @@ func (oack *TFTPOptionAcknowledgement) ToBytes() ([]byte, error) {
 	// Copy the options into the remaining bytes of the packet.
 	copy(packet[2:], buf.Bytes())
 
-	return packet, nil
+	return packet
 }
 
-// ReadFromBytes reads a TFTPOptionAcknowledgement packet from a byte array.
-func (oack *TFTPOptionAcknowledgement) ReadFromBytes(packet []byte) error {
+func (oack *OptionAcknowledgement) Parse(packet []byte) error {
 	// Extract the opcode from the first two bytes of the packet.
 	oack.Opcode = TFTPOpcode(binary.BigEndian.Uint16(packet[:2]))
 
 	// Parse the options from the remaining bytes of the packet.
-	oack.Options = make(map[string]string)
+	oack.Options = make(map[string][]byte)
 	optionBytes := packet[2:]
 	for len(optionBytes) > 0 {
 		// Find the next null byte to split the option name and value.
@@ -75,7 +71,7 @@ func (oack *TFTPOptionAcknowledgement) ReadFromBytes(packet []byte) error {
 		// Move past the null byte to the start of the next option name.
 		optionBytes = optionBytes[nullIndex+1:]
 
-		oack.Options[name] = value
+		oack.Options[name] = []byte(value)
 	}
 
 	return nil
