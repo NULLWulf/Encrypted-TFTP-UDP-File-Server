@@ -14,6 +14,7 @@ func RunClientMode() {
 	router.GET("/", homepage)  // Services index.html
 	router.GET("/getImage", getImage)
 
+	log.Printf("Listening on port 8080\n")
 	err := http.ListenAndServe(":8080", router)
 	if err != nil {
 		log.Fatal("Failed to Listen and Serve: ", err)

@@ -94,19 +94,19 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 
 	}
 
-	if opcode != 1 {
-		errSt := fmt.Sprintf("returned packet opcode is neither OACK or ACK.. opcode: %d packet_t: %s\n", opcode, "nvm")
-		log.Println(errSt)
-		return nil, errors.New(errSt)
-	}
+	//if opcode != 1 {
+	//	errSt := fmt.Sprintf("returned packet opcode is neither OACK or ACK.. opcode: %d packet_t: %s\n", opcode, "nvm")
+	//	log.Println(errSt)
+	//	return nil, errors.New(errSt)
+	//}
 
 	// Process OACK packet
 	var oackPack tftp.OptionAcknowledgement
 	err = oackPack.Parse(packet)
 
-	if tsizeBytes, ok := oackPack.Options["tsize"]; ok && c.xferSize == 0 {
-		c.SetTransferSize(binary.BigEndian.Uint32(tsizeBytes))
-	}
+	//if tsizeBytes, ok := oackPack.Options["tsize"]; ok && c.xferSize == 0 {
+	//	c.SetTransferSize(binary.BigEndian.Uint32(tsizeBytes))
+	//}
 
 	log.Printf(oackPack.String())
 	err = c.StartDataClientXfer()
@@ -120,14 +120,14 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 func (c *TFTPProtocol) StartDataClientXfer() (err error) {
 	var dataPack tftp.Data
 	var errPack tftp.Error
+	var oackPack tftp.OptionAcknowledgement
 	var v int
 	pckBfr := make([]byte, c.blockSize+4)
 	var n uint16
 	n = 0
-	closeXfer := false
 
-	ackPack := tftp.NewAck(0)
-	_, err = c.conn.WriteToUDP(ackPack.ToBytes(), c.raddr)
+	//ackPack := tftp.NewAck(0)
+	//_, err = c.conn.WriteToUDP(ackPack.ToBytes(), c.raddr)
 	for {
 		v, c.raddr, err = c.conn.ReadFromUDP(pckBfr)
 		pckBfr = pckBfr[:v]
@@ -140,25 +140,22 @@ func (c *TFTPProtocol) StartDataClientXfer() (err error) {
 				log.Printf("Received data packet: %d\n", dataPack.BlockNumber)
 				n++
 			}
-			ackPack = tftp.NewAck(n)
-			_, err = c.conn.WriteToUDP(ackPack.ToBytes(), c.raddr)
+			//ackPack = tftp.NewAck(n)
+			//_, err = c.conn.WriteToUDP(ackPack.ToBytes(), c.raddr)
+			break
+		case tftp.TFTPOpcodeOACK:
+			_ = oackPack.Parse(pckBfr)
+			pack := oackPack.String()
+			log.Printf(pack)
+
 		case tftp.TFTPOpcodeERROR:
 			_ = errPack.Parse(pckBfr)
 			err = fmt.Errorf("error packet received... code: %d message: %s\n", errPack.ErrorCode, errPack.ErrorMessage)
-			closeXfer = true
+			return err
 		default:
-			closeXfer = true
-		}
-
-		if closeXfer {
 			break
 		}
 	}
-	if err != nil {
-		return
-	}
-
-	return
 }
 
 func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
