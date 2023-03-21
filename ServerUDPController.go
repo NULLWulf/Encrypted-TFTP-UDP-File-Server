@@ -76,7 +76,8 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		return
 	}
 	c.SetProtocolOptions(req.Options, len(img))
-	opAck := tftp.NewOpt(req.Options, c.xferSize)
+	opAck := tftp.NewOpt1(c.blockSize, c.xferSize, c.blockSize, []byte("netascii"))
+
 	_, err = c.conn.WriteToUDP(opAck.ToBytes(), addr)
 	if err != nil {
 		log.Println("Error sending data packet:", err)
@@ -88,10 +89,61 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		return
 	}
 	fmt.Sprintf("Sending %d blocks", len(c.dataBlocks))
+
+	c.StartTftpSenderLoop()
 }
 
-func (c *TFTPProtocol) StartDataServerXfer(){
-	
+func (c *TFTPProtocol) StartTftpSenderLoop() error {
+	c.base = 1
+	c.nextExpectedBlock = 1
+	c.ackBlocks = make(map[uint16]bool)
+	c.bufferedBlocks = make(map[uint16]*tftp.Data)
+
+	for {
+		for i := 0; i < int(c.windowSize) && int(c.nextExpectedBlock)+i < len(c.dataBlocks); i++ {
+			dataPacket := c.dataBlocks[int(c.nextExpectedBlock)+i-1]
+			_, err := c.conn.WriteToUDP(dataPacket.ToBytes(), c.raddr)
+			if err != nil {
+				return fmt.Errorf("Failed to send data packet: %v", err)
+			}
+		}
+
+		ackBuf := make([]byte, 4)
+		n, _, err := c.conn.ReadFromUDP(ackBuf)
+		if err != nil {
+			return fmt.Errorf("Failed to read from UDP connection: %v", err)
+		}
+		ackBuf = ackBuf[:n]
+
+		opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(ackBuf[:2]))
+
+		switch opcode {
+		case tftp.TFTPOpcodeACK:
+			ackPacket := &tftp.Ack{}
+			if err := ackPacket.Parse(ackBuf); err == nil {
+				if ackPacket.BlockNumber >= c.base {
+					c.base = ackPacket.BlockNumber + 1
+					c.nextExpectedBlock = c.base
+				}
+			} else {
+				return fmt.Errorf("Failed to parse ACK packet: %v", err)
+			}
+		case tftp.TFTPOpcodeERROR:
+			var errPacket tftp.Error
+			if err := errPacket.Parse(ackBuf); err == nil {
+				return fmt.Errorf("Error packet received: %v", errPacket)
+			} else {
+				return fmt.Errorf("Failed to parse error packet: %v", err)
+			}
+		default:
+			// Ignore any other opcodes
+		}
+
+		if c.base > uint16(len(c.dataBlocks)) {
+			break
+		}
+	}
+	return nil
 }
 
 func (c *TFTPProtocol) sendError(addr *net.UDPAddr, errCode uint16, errMsg string) {

@@ -96,14 +96,6 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 		return nil, errors.New(errSt)
 
 	}
-
-	//if opcode != 1 {
-	//	errSt := fmt.Sprintf("returned packet opcode is neither OACK or ACK.. opcode: %d packet_t: %s\n", opcode, "nvm")
-	//	log.Println(errSt)
-	//	return nil, errors.New(errSt)
-	//}
-
-	// Process OACK packet
 	var oackPack tftp.OptionAcknowledgement
 	err = oackPack.Parse(packet)
 
@@ -142,6 +134,8 @@ func (c *TFTPProtocol) TftpClientTransferLoop() error {
 
 			if len(dataPack.Data) < int(c.blockSize) {
 				// End of transfer
+				// verify all blocks received
+				*c.fileData = tftp.RebuildData(c.dataBlocks)
 				break
 			}
 

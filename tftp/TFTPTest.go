@@ -84,45 +84,13 @@ func (t Test) Ack() {
 
 }
 
-func (t Test) Oack() {
-	options := make(map[string][]byte)
-	options["blksize"] = []byte("512")
-	options["key"] = GetRandomKey()
-	options["tsize"] = []byte("5000")
-	oack := NewOpt(options, 0)
-	packet := oack.ToBytes()
-	var oack2 OptionAcknowledgement
-	err := oack2.Parse(packet)
-	if err != nil {
-		return
-	}
-	bsize := oack2.ToBytes()
-	log.Printf("Oack Packet: %d", len(bsize))
-	TestEncryptDecrypt(bsize)
-	log.Println(oack.String())
-}
-
-func (t Test) OackV2() {
-	oack := NewOptv2(1, 500, 512, []byte("key"))
-	packet := oack.ToBytesV2()
-	var oack2 OptionAcknowledgementv2
-	err := oack2.ParseV2(packet)
-	if err != nil {
-		return
-	}
-	bsize := oack2.ToBytesV2()
-	log.Printf("Oack Packet: %d", len(bsize))
-	TestEncryptDecrypt(bsize)
-	log.Printf("%+v\n", oack2)
-}
-
 func (t Test) Test() {
 	//t.Request()
 	//t.Data()
 	//t.Error()
 	//t.Ack()
 	//t.Oack()
-	t.OackV2()
+	
 }
 
 func Xor(data []byte, key []byte) []byte {
