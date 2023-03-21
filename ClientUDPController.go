@@ -21,14 +21,18 @@ import (
 )
 
 type TFTPProtocol struct {
-	conn       *net.UDPConn
-	raddr      *net.UDPAddr
-	fileData   *[]byte
-	xferSize   uint32
-	blockSize  uint16
-	windowSize uint16
-	key        []byte
-	dataBlocks []*tftp.Data
+	conn              *net.UDPConn
+	raddr             *net.UDPAddr
+	fileData          *[]byte
+	xferSize          uint32
+	blockSize         uint16
+	windowSize        uint16
+	key               []byte
+	dataBlocks        []*tftp.Data
+	base              uint16                // Base of the window
+	nextExpectedBlock uint16                // Next expected block number
+	ackBlocks         map[uint16]bool       // Map to keep track of acknowledged blocks
+	bufferedBlocks    map[uint16]*tftp.Data // Map to buffer out-of-order blocks
 }
 
 func NewTFTPClient() (*TFTPProtocol, error) {
@@ -60,13 +64,12 @@ func (c *TFTPProtocol) Close() error {
 }
 
 func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
-	packet := make([]byte, 516)
 	options := make(map[string][]byte)
 	options["blksize"] = []byte("512")
 	options["key"] = tftp.GetRandomKey()
 
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, options)
-	packet, _ = reqPack.ToBytes()
+	packet, _ := reqPack.ToBytes()
 	c.SetProtocolOptions(options, 0)
 	_, err = c.conn.Write(packet)
 	if err != nil {
@@ -104,12 +107,8 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 	var oackPack tftp.OptionAcknowledgement
 	err = oackPack.Parse(packet)
 
-	//if tsizeBytes, ok := oackPack.Options["tsize"]; ok && c.xferSize == 0 {
-	//	c.SetTransferSize(binary.BigEndian.Uint32(tsizeBytes))
-	//}
-
 	log.Printf(oackPack.String())
-	err = c.StartDataClientXfer()
+	err = c.TftpClientTransferLoop()
 	if err != nil {
 		return nil, err
 	}
@@ -117,43 +116,51 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 	return *c.fileData, nil
 }
 
-func (c *TFTPProtocol) StartDataClientXfer() (err error) {
-	var dataPack tftp.Data
-	var errPack tftp.Error
-	var oackPack tftp.OptionAcknowledgement
-	var v int
+func (c *TFTPProtocol) TftpClientTransferLoop() error {
 	pckBfr := make([]byte, c.blockSize+4)
-	var n uint16
-	n = 0
+	c.base = 1
+	c.nextExpectedBlock = 1
+	c.ackBlocks = make(map[uint16]bool)
+	c.bufferedBlocks = make(map[uint16]*tftp.Data)
 
-	//ackPack := tftp.NewAck(0)
-	//_, err = c.conn.WriteToUDP(ackPack.ToBytes(), c.raddr)
 	for {
-		v, c.raddr, err = c.conn.ReadFromUDP(pckBfr)
+		v, _, err := c.conn.ReadFromUDP(pckBfr)
+		if err != nil {
+			return fmt.Errorf("Failed to read from UDP connection: %v", err)
+		}
 		pckBfr = pckBfr[:v]
 		opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(pckBfr[:2]))
+
 		switch opcode {
 		case tftp.TFTPOpcodeDATA:
-			err = dataPack.Parse(pckBfr)
-			if dataPack.BlockNumber == n {
-				c.dataBlocks = append(c.dataBlocks, &dataPack)
-				log.Printf("Received data packet: %d\n", dataPack.BlockNumber)
-				n++
+			var dataPack tftp.Data
+			if err := dataPack.Parse(pckBfr); err == nil {
+				c.receiveDataPacket(&dataPack)
+			} else {
+				return fmt.Errorf("failed to parse data packet: %v", err)
 			}
-			//ackPack = tftp.NewAck(n)
-			//_, err = c.conn.WriteToUDP(ackPack.ToBytes(), c.raddr)
-			break
-		case tftp.TFTPOpcodeOACK:
-			_ = oackPack.Parse(pckBfr)
-			pack := oackPack.String()
-			log.Printf(pack)
+
+			if len(dataPack.Data) < int(c.blockSize) {
+				// End of transfer
+				break
+			}
+
+			// Send ACK for the last contiguous block received
+			ackPack := tftp.NewAck(c.base - 1)
+			if _, err := c.conn.WriteToUDP(ackPack.ToBytes(), c.raddr); err != nil {
+				return fmt.Errorf("failed to write ACK packet to UDP connection: %v", err)
+			}
 
 		case tftp.TFTPOpcodeERROR:
-			_ = errPack.Parse(pckBfr)
-			err = fmt.Errorf("error packet received... code: %d message: %s\n", errPack.ErrorCode, errPack.ErrorMessage)
-			return err
+			var errPack tftp.Error
+			if err := errPack.Parse(pckBfr); err == nil {
+				return fmt.Errorf("error packet received: %v", errPack)
+			} else {
+				return fmt.Errorf("failed to parse error packet: %v", err)
+			}
+
 		default:
-			break
+			// Ignore any other opcodes
 		}
 	}
 }
@@ -173,5 +180,24 @@ func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
 	}
 	if options["key"] != nil {
 		c.key = options["key"]
+	}
+}
+
+func (c *TFTPProtocol) receiveDataPacket(dataPack *tftp.Data) {
+	blockNumber := dataPack.BlockNumber
+	if blockNumber == c.nextExpectedBlock {
+		c.bufferedBlocks[blockNumber] = dataPack
+		c.ackBlocks[blockNumber] = true
+
+		for c.bufferedBlocks[c.base] != nil {
+			c.dataBlocks = append(c.dataBlocks, c.bufferedBlocks[c.base])
+			delete(c.bufferedBlocks, c.base)
+			c.base++
+			c.nextExpectedBlock++
+		}
+	} else if blockNumber > c.nextExpectedBlock && blockNumber < c.base+c.windowSize {
+		// Buffer out-of-order packet
+		c.bufferedBlocks[blockNumber] = dataPack
+		c.ackBlocks[blockNumber] = true
 	}
 }

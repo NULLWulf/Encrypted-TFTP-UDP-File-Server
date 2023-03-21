@@ -90,6 +90,10 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	fmt.Sprintf("Sending %d blocks", len(c.dataBlocks))
 }
 
+func (c *TFTPProtocol) StartDataServerXfer(){
+	
+}
+
 func (c *TFTPProtocol) sendError(addr *net.UDPAddr, errCode uint16, errMsg string) {
 	errPack := tftp.NewErr(errCode, []byte(errMsg))
 	_, err := c.conn.WriteToUDP(errPack.ToBytes(), addr)
