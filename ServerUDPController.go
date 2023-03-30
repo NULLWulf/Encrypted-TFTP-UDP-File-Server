@@ -94,55 +94,14 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 }
 
 func (c *TFTPProtocol) StartTftpSenderLoop() error {
-	c.base = 1
-	c.nextExpectedBlock = 1
-	c.ackBlocks = make(map[uint16]bool)
-	c.bufferedBlocks = make(map[uint16]*tftp.Data)
+	log.Printf("Starting TFTP Sender Transfer Loop")
+	sendBase := 0
+	nextSeqNum := 0
 
 	for {
-		for i := 0; i < int(c.windowSize) && int(c.nextExpectedBlock)+i < len(c.dataBlocks); i++ {
-			dataPacket := c.dataBlocks[int(c.nextExpectedBlock)+i-1]
-			_, err := c.conn.WriteToUDP(dataPacket.ToBytes(), c.raddr)
-			if err != nil {
-				return fmt.Errorf("Failed to send data packet: %v", err)
-			}
-		}
 
-		ackBuf := make([]byte, 4)
-		n, _, err := c.conn.ReadFromUDP(ackBuf)
-		if err != nil {
-			return fmt.Errorf("Failed to read from UDP connection: %v", err)
-		}
-		ackBuf = ackBuf[:n]
-
-		opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(ackBuf[:2]))
-
-		switch opcode {
-		case tftp.TFTPOpcodeACK:
-			ackPacket := &tftp.Ack{}
-			if err := ackPacket.Parse(ackBuf); err == nil {
-				if ackPacket.BlockNumber >= c.base {
-					c.base = ackPacket.BlockNumber + 1
-					c.nextExpectedBlock = c.base
-				}
-			} else {
-				return fmt.Errorf("Failed to parse ACK packet: %v", err)
-			}
-		case tftp.TFTPOpcodeERROR:
-			var errPacket tftp.Error
-			if err := errPacket.Parse(ackBuf); err == nil {
-				return fmt.Errorf("Error packet received: %v", errPacket)
-			} else {
-				return fmt.Errorf("Failed to parse error packet: %v", err)
-			}
-		default:
-			// Ignore any other opcodes
-		}
-
-		if c.base > uint16(len(c.dataBlocks)) {
-			break
-		}
 	}
+
 	return nil
 }
 

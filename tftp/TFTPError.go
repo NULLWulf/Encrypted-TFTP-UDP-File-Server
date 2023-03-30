@@ -125,55 +125,54 @@ func (oack *OptionAcknowledgement) Parse(packet []byte) error {
 		return fmt.Errorf("packet too short")
 	}
 
-	// Extract the opcode from the first two bytes of the packet.
-	oack.Opcode = TFTPOpcode(binary.BigEndian.Uint16(packet[:2]))
-
-	// Parse the options from the remaining bytes of the packet.
-	oack.Options = make(map[string][]byte)
-	optionBytes := packet[2:]
-	for len(optionBytes) > 0 {
-		// Find the next null byte to split the option name and value.
-		nullIndex := bytes.IndexByte(optionBytes, 0)
-		if nullIndex < 0 {
-			return fmt.Errorf("invalid option: %v", optionBytes)
-		}
-		name := string(optionBytes[:nullIndex])
-
-		// Move past the null byte to the start of the value.
-		optionBytes = optionBytes[nullIndex+1:]
-
-		if len(optionBytes) == 0 {
-			return fmt.Errorf("invalid option: %v", packet)
-		}
-
-		// Find the length of the option value.
-		valueLen := bytes.IndexByte(optionBytes, 0)
-		if valueLen < 0 {
-			valueLen = len(optionBytes)
-		}
-
-		value := make([]byte, valueLen)
-		copy(value, optionBytes[:valueLen])
-
-		// Move past the null byte and the option value to the start of the next option name.
-		optionBytes = optionBytes[valueLen+1:]
-
-		oack.Options[name] = value
-	}
-
-	// Extract optional parameters from the parsed options
-	if windowsizeBytes, ok := oack.Options["windowsize"]; ok {
-		oack.Windowsize = binary.BigEndian.Uint16(windowsizeBytes)
-	}
-	if tsizeBytes, ok := oack.Options["tsize"]; ok {
-		oack.XferSize = binary.BigEndian.Uint32(tsizeBytes)
-	}
-	if blksizeBytes, ok := oack.Options["blksize"]; ok {
-		oack.BlkSize = binary.BigEndian.Uint16(blksizeBytes)
-	}
-	if keyBytes, ok := oack.Options["key"]; ok {
-		oack.Key = keyBytes
-	}
+	//// Extract the opcode from the first two bytes of the packet.
+	//oack.Opcode = TFTPOpcode(binary.BigEndian.Uint16(packet[:2]))
+	//
+	//// Parse the options from the remaining bytes of the packet.
+	//oack.Options = make(map[string][]byte)
+	//optionBytes := packet[2:]
+	//for len(optionBytes) > 0 {
+	//	// Find the next null byte to split the option name and value.
+	//	nullIndex := bytes.IndexByte(optionBytes, 0)
+	//	if nullIndex < 0 {
+	//		return fmt.Errorf("invalid option: %v", optionBytes)
+	//	}
+	//	name := string(optionBytes[:nullIndex])
+	//
+	//	// Move past the null byte to the start of the value.
+	//	optionBytes = optionBytes[nullIndex+1:]
+	//
+	//	if len(optionBytes) == 0 {
+	//		return fmt.Errorf("invalid option: %v", packet)
+	//	}
+	//
+	//	// Find the length of the option value.
+	//	valueLen := bytes.IndexByte(optionBytes, 0)
+	//	if valueLen < 0 {
+	//		valueLen = len(optionBytes)
+	//	}
+	//
+	//	value := make([]byte, valueLen)
+	//	copy(value, optionBytes[:valueLen])
+	//
+	//	// Move past the null byte and the option value to the start of the next option name.
+	//	optionBytes = optionBytes[valueLen+1:]
+	//
+	//	oack.Options[name] = value
+	//}
+	//
+	//// Extract optional parameters from the parsed options
+	//if windowsizeBytes, ok := oack.Options["windowsize"]; ok {
+	//	oack.Windowsize = binary.BigEndian.Uint16(windowsizeBytes)
+	//}
+	//if tsizeBytes, ok := oack.Options["tsize"]; ok {
+	//	oack.XferSize = binary.BigEndian.Uint32(tsizeBytes)
+	//}
+	//if blksizeBytes, ok := oack.Options["blksize"]; ok {
+	//	oack.BlkSize = binary.BigEndian.Uint16(blksizeBytes)
+	//}
+	//if keyBytes, ok := oack.Options["key"]; ok {
+	//	oack.Key = keyBytes
 
 	return nil
 }
