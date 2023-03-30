@@ -100,63 +100,18 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 	err = oackPack.Parse(packet)
 
 	log.Printf(oackPack.String())
-	err = c.TftpClientTransferLoop()
-	if err != nil {
-		return nil, err
-	}
+	_ = c.TftpClientTransferLoop()
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	return *c.fileData, nil
 }
 
 func (c *TFTPProtocol) TftpClientTransferLoop() error {
-	pckBfr := make([]byte, c.blockSize+4)
-	c.base = 1
-	c.nextExpectedBlock = 1
-	c.ackBlocks = make(map[uint16]bool)
-	c.bufferedBlocks = make(map[uint16]*tftp.Data)
+	log.Printf("Starting Client TFTP Transfer Loop")
 
-	for {
-		v, _, err := c.conn.ReadFromUDP(pckBfr)
-		if err != nil {
-			return fmt.Errorf("Failed to read from UDP connection: %v", err)
-		}
-		pckBfr = pckBfr[:v]
-		opcode := tftp.TFTPOpcode(binary.BigEndian.Uint16(pckBfr[:2]))
-
-		switch opcode {
-		case tftp.TFTPOpcodeDATA:
-			var dataPack tftp.Data
-			if err := dataPack.Parse(pckBfr); err == nil {
-				c.receiveDataPacket(&dataPack)
-			} else {
-				return fmt.Errorf("failed to parse data packet: %v", err)
-			}
-
-			if len(dataPack.Data) < int(c.blockSize) {
-				// End of transfer
-				// verify all blocks received
-				*c.fileData = tftp.RebuildData(c.dataBlocks)
-				break
-			}
-
-			// Send ACK for the last contiguous block received
-			ackPack := tftp.NewAck(c.base - 1)
-			if _, err := c.conn.WriteToUDP(ackPack.ToBytes(), c.raddr); err != nil {
-				return fmt.Errorf("failed to write ACK packet to UDP connection: %v", err)
-			}
-
-		case tftp.TFTPOpcodeERROR:
-			var errPack tftp.Error
-			if err := errPack.Parse(pckBfr); err == nil {
-				return fmt.Errorf("error packet received: %v", errPack)
-			} else {
-				return fmt.Errorf("failed to parse error packet: %v", err)
-			}
-
-		default:
-			// Ignore any other opcodes
-		}
-	}
+	return nil
 }
 
 func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
