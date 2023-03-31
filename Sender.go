@@ -58,7 +58,7 @@ func (c *TFTPProtocol) startTftpSenderLoop(start int64) error {
 	c.base = 1
 	c.retryCount = 0
 	c.maxRetries = 5
-	c.timeout := time.Duration(c.backoff) * time.Millisecond
+	timeout := time.Duration(c.backoff) * time.Millisecond
 	n, _ = c.conn.Read(dataPacket)
 
 	for {
@@ -72,8 +72,8 @@ func (c *TFTPProtocol) startTftpSenderLoop(start int64) error {
 				return errors.New("error sending data packet: " + err.Error())
 			}
 
-			timer := time.NewTimer(time.Duration(c.timeout))
-			defer time.Stop()
+			timer := time.NewTimer(timeout)
+			defer timer.Stop()
 
 		} else {
 
