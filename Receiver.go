@@ -70,7 +70,7 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) (endOfFile bool) {
 		log.Printf("Received data packet block number: %d\n", dataPack.BlockNumber)
 		c.dataBlocks = append(c.dataBlocks, &dataPack)
 		// send ACK for this packet on  routine
-		go c.sendAck(c.nextSeqNum)
+		c.sendAck(c.nextSeqNum)
 		c.nextSeqNum++
 		if len(dataPacket) < 516 {
 			// last data block received, end of file
@@ -78,7 +78,7 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) (endOfFile bool) {
 		}
 	} else { // duplicate packet or out of order packet
 		// send ACK for previous packet on  routine
-		go c.sendAck(c.nextSeqNum - 1)
+		c.sendAck(c.nextSeqNum - 1)
 	}
 	return false
 }
