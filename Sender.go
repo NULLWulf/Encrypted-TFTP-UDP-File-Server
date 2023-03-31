@@ -2,6 +2,7 @@ package main
 
 import (
 	"CSC445_Assignment2/tftp"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -50,14 +51,33 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 
 func (c *TFTPProtocol) startTftpSenderLoop(start int64) error {
 	log.Printf("Starting Sender TFTP Loop\n")
-	return nil
-}
+	dataPacket := make([]byte, 516)
+	n := 0            // number of bytes read
+	err := error(nil) // placeholder to avoid shadowing
+	c.nextSeqNum = 1  // settings to 0 for first data packet
+	c.base = 1
+	c.retryCount = 0
+	c.maxRetries = 5
+	c.timeout := time.Duration(c.backoff) * time.Millisecond
+	n, _ = c.conn.Read(dataPacket)
 
-func (c *TFTPProtocol) sendError(addr *net.UDPAddr, errCode uint16, errMsg string) {
-	errPack := tftp.NewErr(errCode, []byte(errMsg))
-	_, err := c.conn.WriteToUDP(errPack.ToBytes(), addr)
-	if err != nil {
-		log.Println("Error sending error packet:", err)
-		return
+	for {
+		if c.nextSeqNum < c.base+c.windowSize && c.nextSeqNum <= uint16(len(c.dataBlocks)) {
+			// send data packet
+			// Send data packet, c.nextSeqNum is the next sequence number to send
+			// -1 because nextSeqNum is 1 indexed
+			_, err = c.conn.Write(c.dataBlocks[c.nextSeqNum-1].ToBytes())
+			if err != nil {
+				c.sendAbort()
+				return errors.New("error sending data packet: " + err.Error())
+			}
+
+			timer := time.NewTimer(time.Duration(c.timeout))
+			defer time.Stop()
+
+		} else {
+
+		}
+
 	}
 }

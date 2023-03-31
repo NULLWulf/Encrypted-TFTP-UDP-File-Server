@@ -71,7 +71,3 @@ func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
 		return
 	}
 }
-
-func (c *TFTPProtocol) SetTransferSize(size uint32) {
-	c.xferSize = size
-}

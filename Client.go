@@ -53,6 +53,7 @@ func (c *TFTPProtocol) preDataTransfer() ([]byte, error) {
 	packet := make([]byte, 516)
 	cont := true
 	err := error(nil)
+	finish := false
 
 	for {
 		n, addr, tErr := c.conn.ReadFromUDP(packet)
@@ -80,7 +81,7 @@ func (c *TFTPProtocol) preDataTransfer() ([]byte, error) {
 			if err != nil {
 				return nil, fmt.Errorf("error parsing OACK packet: %s", err)
 			}
-			err = c.TftpClientTransferLoop(addr)
+			err, finish = c.TftpClientTransferLoop(addr)
 			if err != nil {
 				return nil, fmt.Errorf("error in transfer loop: %s", err)
 			}
@@ -88,11 +89,15 @@ func (c *TFTPProtocol) preDataTransfer() ([]byte, error) {
 		default:
 			log.Printf("Received unexpected packet: %s\n", packet)
 		}
-
 		if !cont {
 			break
 		}
 	}
 
-	return *c.fileData, nil
+	if finish {
+		d := tftp.RebuildData(c.dataBlocks)
+		return d, nil
+	}
+	// WIP
+	return nil, nil
 }
