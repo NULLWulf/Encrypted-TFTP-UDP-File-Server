@@ -52,14 +52,14 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 func (c *TFTPProtocol) startTftpSenderLoop(start int64) error {
 	log.Printf("Starting Sender TFTP Loop\n")
 	dataPacket := make([]byte, 516)
-	n := 0            // number of bytes read
+	//n := 0            // number of bytes read
 	err := error(nil) // placeholder to avoid shadowing
 	c.nextSeqNum = 1  // settings to 0 for first data packet
 	c.base = 1
 	c.retryCount = 0
 	c.maxRetries = 5
 	timeout := time.Duration(c.backoff) * time.Millisecond
-	n, _ = c.conn.Read(dataPacket)
+	_, _ = c.conn.Read(dataPacket)
 
 	for {
 		if c.nextSeqNum < c.base+c.windowSize && c.nextSeqNum <= uint16(len(c.dataBlocks)) {
