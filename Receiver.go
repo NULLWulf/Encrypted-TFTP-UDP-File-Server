@@ -2,49 +2,32 @@ package main
 
 import (
 	"CSC445_Assignment2/tftp"
-	"encoding/binary"
+	"log"
 	"net"
 )
 
-type TFTPProtocol struct {
-	conn              *net.UDPConn
-	raddr             *net.UDPAddr
-	fileData          *[]byte
-	xferSize          uint32
-	blockSize         uint16
-	windowSize        uint16
-	key               []byte
-	dataBlocks        []*tftp.Data
-	base              uint16                // Base of the window
-	nextExpectedBlock uint16                // Next expected block number
-	ackBlocks         map[uint16]bool       // Map to keep track of acknowledged blocks
-	bufferedBlocks    map[uint16]*tftp.Data // Map to buffer out-of-order blocks
+func (c *TFTPProtocol) TftpClientTransferLoop(addr net.Addr) error {
+	log.Printf("Starting Receiver TFTP Transfer Loop\n")
+	//nextSeqNum := uint16(0)
+
+	return nil
 }
 
-func (c *TFTPProtocol) Close() error {
-	return c.conn.Close()
-}
+func (c *TFTPProtocol) receiveDataPacket(dataPack *tftp.Data) {
+	blockNumber := dataPack.BlockNumber
+	if blockNumber == c.nextExpectedBlock {
+		c.bufferedBlocks[blockNumber] = dataPack
+		c.ackBlocks[blockNumber] = true
 
-// SetProtocolOptions sets the protocol options for the TFTP protocol
-// using static values for the time being
-func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
-	if l != 0 {
-		c.SetTransferSize(uint32(l))
+		for c.bufferedBlocks[c.base] != nil {
+			c.dataBlocks = append(c.dataBlocks, c.bufferedBlocks[c.base])
+			delete(c.bufferedBlocks, c.base)
+			c.base++
+			c.nextExpectedBlock++
+		}
+	} else if blockNumber > c.nextExpectedBlock && blockNumber < c.base+c.windowSize {
+		// Buffer out-of-order packet
+		c.bufferedBlocks[blockNumber] = dataPack
+		c.ackBlocks[blockNumber] = true
 	}
-	if options["tsize"] != nil && c.xferSize == 0 {
-		c.SetTransferSize(binary.BigEndian.Uint32(options["tsize"]))
-	}
-	if options["blksize"] != nil {
-		c.blockSize = binary.BigEndian.Uint16(options["blksize"])
-	}
-	if options["windowsize"] != nil {
-		c.windowSize = binary.BigEndian.Uint16(options["windowsize"])
-	}
-	if options["key"] != nil {
-		c.key = options["key"]
-	}
-
-	c.key = []byte("1234567890123456")
-	c.blockSize = 512
-	c.windowSize = 4
 }

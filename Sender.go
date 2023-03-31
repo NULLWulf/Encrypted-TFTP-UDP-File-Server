@@ -9,11 +9,11 @@ import (
 )
 
 func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
-	log.Println("Received RRQ")
 	var req tftp.Request
 	err := req.Parse(buf)
 	if err != nil {
 		parseErr := fmt.Errorf("error parsing request: %s", err)
+		log.Printf("Error parsing request: %s\n", parseErr)
 		c.sendError(addr, 22, parseErr.Error())
 		return
 	}
@@ -35,7 +35,7 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	start := time.Now().UnixNano()
 	_, err = c.conn.WriteToUDP(opAck.ToBytes(), addr)
 	if err != nil {
-		log.Println("Error sending data packet: ", err)
+		log.Println("Error sending opack packet: ", err)
 		c.sendError(addr, 10, "Illegal TFTP operation")
 		return
 	}
@@ -49,7 +49,7 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 }
 
 func (c *TFTPProtocol) startTftpSenderLoop(start int64) error {
-	log.Printf("Starting TFTP Sender Transfer Loop")
+	log.Printf("Starting Sender TFTP Loop\n")
 	return nil
 }
 

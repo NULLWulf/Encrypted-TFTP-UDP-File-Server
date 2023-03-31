@@ -43,7 +43,6 @@ func (c *TFTPProtocol) handleConnectionsUDP() {
 			msg := buf[:n]
 			c.handleRequest(raddr, msg)
 			// close connection
-			err = c.conn.Close()
 			if err != nil {
 				log.Printf("Error closing connection: %s\n", err)
 			}

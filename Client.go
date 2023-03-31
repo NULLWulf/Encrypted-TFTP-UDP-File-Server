@@ -41,55 +41,58 @@ func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
 		log.Printf("Error sending request packet: %s\n", err)
 		return
 	}
-	n, _, err := c.conn.ReadFromUDP(packet)
-	packet = packet[:n]
-	switch opcode := binary.BigEndian.Uint16(packet[:2]); opcode {
-	case uint16(tftp.TFTPOpcodeERROR):
-		var errPack tftp.Error
-		err := errPack.Parse(packet)
-		if err != nil {
-			return nil, err
+	d, err := c.preDataTransfer()
+	if err != nil {
+		log.Printf("Error in preDataTransfer: %s\n", err)
+		return nil, err
+	}
+	return d, nil
+}
+
+func (c *TFTPProtocol) preDataTransfer() ([]byte, error) {
+	packet := make([]byte, 516)
+	cont := true
+	err := error(nil)
+
+	for {
+		n, addr, tErr := c.conn.ReadFromUDP(packet)
+		if tErr != nil {
+			return nil, fmt.Errorf("error reading packet: %s", err)
 		}
-		return nil, fmt.Errorf("error code %d: %s", errPack.ErrorCode, errPack.ErrorMessage)
-	case uint16(tftp.TFTPOpcodeTERM):
-		return nil, fmt.Errorf("server terminated connection")
-	case uint16(tftp.TFTPOpcodeOACK):
-		var oackPack tftp.OptionAcknowledgement
-		err := oackPack.Parse(packet)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing OACK packet: %s", err)
+		packet = packet[:n]
+		code := binary.BigEndian.Uint16(packet[:2])
+		switch tftp.TFTPOpcode(code) {
+		case tftp.TFTPOpcodeERROR:
+			log.Printf("Error packet received: %s\n", packet)
+			var errPack tftp.Error
+			err = errPack.Parse(packet)
+			if err != nil {
+				return nil, err
+			}
+			return nil, fmt.Errorf("error code %d: %s", errPack.ErrorCode, errPack.ErrorMessage)
+		case tftp.TFTPOpcodeTERM:
+			log.Printf("Server terminated connection: %s\n", packet)
+			return nil, fmt.Errorf("server terminated connection")
+		case tftp.TFTPOpcodeOACK:
+			log.Printf("Received OACK packet: %s\n", packet)
+			var oackPack tftp.OptionAcknowledgement
+			err = oackPack.Parse(packet)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing OACK packet: %s", err)
+			}
+			err = c.TftpClientTransferLoop(addr)
+			if err != nil {
+				return nil, fmt.Errorf("error in transfer loop: %s", err)
+			}
+			cont = false
+		default:
+			log.Printf("Received unexpected packet: %s\n", packet)
 		}
-		err = c.TftpClientTransferLoop()
-		if err != nil {
-			return nil, fmt.Errorf("error in transfer loop: %s", err)
+
+		if !cont {
+			break
 		}
 	}
 
 	return *c.fileData, nil
-}
-
-func (c *TFTPProtocol) TftpClientTransferLoop() error {
-	log.Printf("Starting Client TFTP Transfer Loop")
-	//nextSeqNum := uint16(0)
-
-	return nil
-}
-
-func (c *TFTPProtocol) receiveDataPacket(dataPack *tftp.Data) {
-	blockNumber := dataPack.BlockNumber
-	if blockNumber == c.nextExpectedBlock {
-		c.bufferedBlocks[blockNumber] = dataPack
-		c.ackBlocks[blockNumber] = true
-
-		for c.bufferedBlocks[c.base] != nil {
-			c.dataBlocks = append(c.dataBlocks, c.bufferedBlocks[c.base])
-			delete(c.bufferedBlocks, c.base)
-			c.base++
-			c.nextExpectedBlock++
-		}
-	} else if blockNumber > c.nextExpectedBlock && blockNumber < c.base+c.windowSize {
-		// Buffer out-of-order packet
-		c.bufferedBlocks[blockNumber] = dataPack
-		c.ackBlocks[blockNumber] = true
-	}
 }
