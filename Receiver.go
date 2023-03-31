@@ -11,11 +11,13 @@ import (
 func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finish bool) {
 	conn := *cn
 	log.Printf("Starting Receiver TFTP Transfer Loop\n")
+	c.receivedPackets = make(map[uint16]*tftp.Data)
 	dataPacket := make([]byte, 516)
 	//n := 0           // number of bytes read
 	err = error(nil) // placeholder to avoid shadowing
 	lb := false      // last data block received
 	c.nextSeqNum = 0 // settings to 0 for first data packet
+	c.base = 1
 	ack := tftp.NewAck(c.nextSeqNum)
 	log.Printf("Sending initial ACK packet: %v\n", ack)
 	c.nextSeqNum++ // increment for first data packet
@@ -27,7 +29,8 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 	for {
 		// receive data packet from server
 		//n, err, _ = c.conn.ReadFromUDP(dataPacket)
-		_, err = conn.Read(dataPacket)
+		n, err := conn.Read(dataPacket)
+		dataPacket = dataPacket[:n] // trim packet to size of data
 		//dataPacket = dataPacket[:n] // trim packet to size of data
 		// get opcode
 		opcode := binary.BigEndian.Uint16(dataPacket[:2])
@@ -67,15 +70,19 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) (endOfFile bool) {
 	var dataPack tftp.Data
 	err := dataPack.Parse(dataPacket)
 	if err == nil && dataPack.BlockNumber == c.nextSeqNum {
-		log.Printf("Received data packet block number: %d\n", dataPack.BlockNumber)
-		c.dataBlocks = append(c.dataBlocks, &dataPack)
-		// send ACK for this packet on  routine
-		c.sendAck(c.nextSeqNum)
-		c.nextSeqNum++
-		if len(dataPacket) < 516 {
+		log.Printf("\n-----------------\nReceived data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataPack.BlockNumber, dataPack.Data[0:10], len(dataPack.Data))
+		//c.dataBlocks = append(c.dataBlocks, &dataPack)
+		c.appendFileDate(&dataPack)
+		// send ACK for this packet on  routinel
+		if len(dataPack.Data) < 512 {
 			// last data block received, end of file
+			log.Printf("Last data block received, end of file\n")
+			c.sendAck(c.nextSeqNum - 1)
 			return true
 		}
+		c.sendAck(c.nextSeqNum)
+
+		c.nextSeqNum++
 	} else { // duplicate packet or out of order packet
 		// send ACK for previous packet on  routine
 		c.sendAck(c.nextSeqNum - 1)
