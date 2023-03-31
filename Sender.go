@@ -15,20 +15,19 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	if err != nil {
 		parseErr := fmt.Errorf("error parsing request: %s", err)
 		log.Printf("Error parsing request: %s\n", parseErr)
-		c.sendError(addr, 22, parseErr.Error())
+		go c.sendError(addr, 22, parseErr.Error())
 		return
 	}
 	log.Printf("Received %d bytes from %s for file %s \n", len(buf), addr, string(req.Filename))
 	err, img := IQ.AddNewAndReturnImg(string(req.Filename))
 	if err != nil {
-		c.sendError(addr, 20, "File not found")
+		go c.sendError(addr, 20, "File not found")
 		return
 	}
 	c.SetProtocolOptions(nil, 0)
 	opAck := tftp.NewOpt1(c.blockSize, c.xferSize, c.blockSize, []byte("octet"))
 	c.dataBlocks, err = tftp.PrepareData(img, int(c.blockSize))
 	if err != nil {
-		log.Println("Error preparing data blocks: ", err)
 		c.sendError(addr, 4, "Illegal TFTP operation")
 		return
 	}
@@ -36,14 +35,12 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	start := time.Now().UnixNano()
 	_, err = c.conn.WriteToUDP(opAck.ToBytes(), addr)
 	if err != nil {
-		log.Println("Error sending opack packet: ", err)
 		c.sendError(addr, 10, "Illegal TFTP operation")
 		return
 	}
 
 	err = c.startTftpSenderLoop(start)
 	if err != nil {
-		log.Println("Fatal error in TFTP Sender Loop: ", err)
 		c.sendError(addr, 21, "Illegal TFTP operation")
 		return
 	}
@@ -52,6 +49,7 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 func (c *TFTPProtocol) startTftpSenderLoop(start int64) error {
 	log.Printf("Starting Sender TFTP Loop\n")
 	dataPacket := make([]byte, 516)
+	var ack tftp.Ack
 	//n := 0            // number of bytes read
 	err := error(nil) // placeholder to avoid shadowing
 	c.nextSeqNum = 1  // settings to 0 for first data packet
@@ -60,6 +58,13 @@ func (c *TFTPProtocol) startTftpSenderLoop(start int64) error {
 	c.maxRetries = 5
 	timeout := time.Duration(c.backoff) * time.Millisecond
 	_, _ = c.conn.Read(dataPacket)
+	err = ack.Parse(dataPacket)
+	if err != nil {
+		return errors.New("error parsing ack packet: " + err.Error())
+	}
+	if ack.BlockNumber != 0 {
+		return errors.New("error parsing ack packet: block number should be 0")
+	}
 
 	for {
 		if c.nextSeqNum < c.base+c.windowSize && c.nextSeqNum <= uint16(len(c.dataBlocks)) {

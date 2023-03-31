@@ -66,17 +66,16 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) (endOfFile bool) {
 	err := dataPack.Parse(dataPacket)
 	if err == nil && dataPack.BlockNumber == c.nextSeqNum {
 		c.dataBlocks = append(c.dataBlocks, &dataPack)
-		ack := tftp.NewAck(c.nextSeqNum)
-		_, err = c.conn.Write(ack.ToBytes())
+		// send ACK for this packet on go routine
+		go c.sendAck(c.nextSeqNum)
 		c.nextSeqNum++
 		if len(dataPacket) < 516 {
 			// last data block received, end of file
 			return true
 		}
 	} else { // duplicate packet or out of order packet
-		// send ACK for previous packet
-		ack := tftp.NewAck(c.nextSeqNum - 1)
-		_, err = c.conn.Write(ack.ToBytes())
+		// send ACK for previous packet on go routine
+		go c.sendAck(c.nextSeqNum - 1)
 	}
 	return false
 }

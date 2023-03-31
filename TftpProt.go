@@ -53,6 +53,7 @@ func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
 }
 
 func (c *TFTPProtocol) sendError(addr *net.UDPAddr, errCode uint16, errMsg string) {
+	log.Printf("Sending error packet: %d %s\n", errCode, errMsg)
 	errPack := tftp.NewErr(errCode, []byte(errMsg))
 	_, err := c.conn.WriteToUDP(errPack.ToBytes(), addr)
 	if err != nil {
@@ -65,6 +66,18 @@ func (c *TFTPProtocol) sendAbort() {
 	c.sendError(c.raddr, 9, "Aborting transfer")
 }
 
+func (c *TFTPProtocol) sendAck(nextSeqNum uint16) {
+	ack := tftp.NewAck(nextSeqNum)
+	_, err := c.conn.WriteToUDP(ack.ToBytes(), c.raddr)
+	if err != nil {
+		log.Println("Error sending ACK packet:", err)
+		return
+	}
+}
+
+// handleErrPacket handles an error packet but currently just sends an error
+// back so relying on timeout to close the connection.  Should probably
+// implement a proper connection close.
 func (c *TFTPProtocol) handleErrPacket(packet []byte) {
 	var errPack tftp.Error
 	err := errPack.Parse(packet)
