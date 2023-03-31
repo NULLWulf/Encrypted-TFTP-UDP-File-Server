@@ -52,10 +52,10 @@ func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
 	c.windowSize = 4
 }
 
-func (c *TFTPProtocol) sendError(addr *net.UDPAddr, errCode uint16, errMsg string) {
+func (c *TFTPProtocol) sendError(errCode uint16, errMsg string) {
 	log.Printf("Sending error packet: %d %s\n", errCode, errMsg)
 	errPack := tftp.NewErr(errCode, []byte(errMsg))
-	_, err := c.conn.WriteToUDP(errPack.ToBytes(), addr)
+	_, err := c.conn.Write(errPack.ToBytes())
 	if err != nil {
 		log.Println("Error sending error packet:", err)
 		return
@@ -63,12 +63,13 @@ func (c *TFTPProtocol) sendError(addr *net.UDPAddr, errCode uint16, errMsg strin
 }
 
 func (c *TFTPProtocol) sendAbort() {
-	c.sendError(c.raddr, 9, "Aborting transfer")
+	c.sendError(9, "Aborting transfer")
 }
 
 func (c *TFTPProtocol) sendAck(nextSeqNum uint16) {
 	ack := tftp.NewAck(nextSeqNum)
-	_, err := c.conn.WriteToUDP(ack.ToBytes(), c.raddr)
+	_, err := c.conn.Write(ack.ToBytes())
+	log.Printf("Sending ACK packet: %d\n", ack.BlockNumber)
 	if err != nil {
 		log.Println("Error sending ACK packet:", err)
 		return
@@ -83,10 +84,10 @@ func (c *TFTPProtocol) handleErrPacket(packet []byte) {
 	err := errPack.Parse(packet)
 	if err != nil {
 		log.Println("Error parsing error packet:", err)
-		c.sendError(c.raddr, 22, "Error parsing error packet")
+		c.sendError(22, "Error parsing error packet")
 		return
 	}
-	c.sendError(c.raddr, errPack.ErrorCode, string(errPack.ErrorMessage))
+	c.sendError(errPack.ErrorCode, string(errPack.ErrorMessage))
 	return
 }
 

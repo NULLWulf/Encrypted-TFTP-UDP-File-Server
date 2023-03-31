@@ -8,24 +8,27 @@ import (
 	"net"
 )
 
-func (c *TFTPProtocol) TftpClientTransferLoop(addr net.Addr) (err error, finish bool) {
+func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finish bool) {
+	conn := *cn
 	log.Printf("Starting Receiver TFTP Transfer Loop\n")
 	dataPacket := make([]byte, 516)
-	n := 0           // number of bytes read
+	//n := 0           // number of bytes read
 	err = error(nil) // placeholder to avoid shadowing
 	lb := false      // last data block received
 	c.nextSeqNum = 0 // settings to 0 for first data packet
 	ack := tftp.NewAck(c.nextSeqNum)
+	log.Printf("Sending initial ACK packet: %v\n", ack)
 	c.nextSeqNum++ // increment for first data packet
-	_, err = c.conn.Write(ack.ToBytes())
+	_, err = conn.Write(ack.ToBytes())
 	if err != nil {
 		c.sendAbort()
 		return errors.New("error sending initial ACK packet: " + err.Error()), false
 	}
 	for {
 		// receive data packet from server
-		n, err = c.conn.Read(dataPacket)
-		dataPacket = dataPacket[:n] // trim packet to size of data
+		//n, err, _ = c.conn.ReadFromUDP(dataPacket)
+		_, err = conn.Read(dataPacket)
+		//dataPacket = dataPacket[:n] // trim packet to size of data
 		// get opcode
 		opcode := binary.BigEndian.Uint16(dataPacket[:2])
 		switch tftp.TFTPOpcode(opcode) {
@@ -50,7 +53,6 @@ func (c *TFTPProtocol) TftpClientTransferLoop(addr net.Addr) (err error, finish 
 			break
 		}
 	}
-
 	return nil, true
 }
 
@@ -65,8 +67,9 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) (endOfFile bool) {
 	var dataPack tftp.Data
 	err := dataPack.Parse(dataPacket)
 	if err == nil && dataPack.BlockNumber == c.nextSeqNum {
+		log.Printf("Received data packet block number: %d\n", dataPack.BlockNumber)
 		c.dataBlocks = append(c.dataBlocks, &dataPack)
-		// send ACK for this packet on go routine
+		// send ACK for this packet on  routine
 		go c.sendAck(c.nextSeqNum)
 		c.nextSeqNum++
 		if len(dataPacket) < 516 {
@@ -74,7 +77,7 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) (endOfFile bool) {
 			return true
 		}
 	} else { // duplicate packet or out of order packet
-		// send ACK for previous packet on go routine
+		// send ACK for previous packet on  routine
 		go c.sendAck(c.nextSeqNum - 1)
 	}
 	return false

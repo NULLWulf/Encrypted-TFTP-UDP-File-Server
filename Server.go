@@ -58,7 +58,7 @@ func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
 		break
 	case tftp.TFTPOpcodeWRQ:
 		// send error packet
-		c.sendError(addr, 11, "Write requests are not supported at this time")
+		c.sendError(11, "Write requests are not supported at this time")
 	case tftp.TFTPOpcodeERROR:
 		log.Println("Received ERROR packet, Terminating Connection...")
 		return
@@ -67,7 +67,7 @@ func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
 		return
 	default:
 		log.Println("Packet context invalid, sending error packet...")
-		c.sendError(addr, 4, "Illegal TFTP operation")
+		c.sendError(4, "Illegal TFTP operation")
 		return
 	}
 }

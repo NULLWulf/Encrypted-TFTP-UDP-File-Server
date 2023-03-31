@@ -56,7 +56,7 @@ func (c *TFTPProtocol) preDataTransfer() ([]byte, error) {
 	finish := false
 
 	for {
-		n, addr, tErr := c.conn.ReadFromUDP(packet)
+		n, tErr := c.conn.Read(packet)
 		if tErr != nil {
 			return nil, fmt.Errorf("error reading packet: %s", err)
 		}
@@ -81,7 +81,7 @@ func (c *TFTPProtocol) preDataTransfer() ([]byte, error) {
 			if err != nil {
 				return nil, fmt.Errorf("error parsing OACK packet: %s", err)
 			}
-			err, finish = c.TftpClientTransferLoop(addr)
+			err, finish = c.TftpClientTransferLoop(c.conn)
 			if err != nil {
 				return nil, fmt.Errorf("error in transfer loop: %s", err)
 			}
