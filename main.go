@@ -3,11 +3,15 @@ package main
 import (
 	"CSC445_Assignment2/tftp"
 	"log"
+	"os"
 )
 
 var IQ *ImageQueueObj
 
 func main() {
+
+	TestRetrievingFile()
+	os.Exit(0)
 	// Parse the command line arguments
 	parseProgramArguments()
 	// Run the application in the specified mode

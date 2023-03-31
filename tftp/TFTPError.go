@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 )
 
 // Error TFTPError represents a TFTP error packet.
@@ -121,6 +122,7 @@ func (oack *OptionAcknowledgement) ToBytes() []byte {
 }
 
 func (oack *OptionAcknowledgement) Parse(packet []byte) error {
+	log.Printf("Received Oack Packet")
 	if len(packet) < 2 {
 		return fmt.Errorf("packet too short")
 	}
