@@ -82,7 +82,7 @@ func PrepareData(data []byte, blockSize int) (dataQueue []*Data, err error) {
 		}
 
 		// Create the TFTPData packet
-		dataQueue[i], err = NewData(uint16(i), data[start:end])
+		dataQueue[i], err = NewData(uint16(i)+1, data[start:end])
 		if err != nil {
 			return
 		}
