@@ -53,10 +53,11 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 		}
 
 		if lb {
-			break
+			log.Printf("Last data block received, ending transfer\n")
+			return nil, true
 		}
 	}
-	return nil, true
+
 }
 
 // receiveDataPacket receives a data packet and handles it

@@ -46,41 +46,6 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	}
 }
 
-//
-//func (c *TFTPProtocol) startTftpSenderLoop(start int64) error {
-//	// Initialize variables
-//	c.base = 1
-//	c.nextSeqNum = 1
-//	var ack tftp.Ack
-//	log.Println("Starting sender transfer TFTP loop")
-//	packet := make([]byte, 516)
-//	n, _ := c.conn.Read(packet)
-//	packet = packet[:n]
-//	err := ack.Parse(packet)
-//	log.Printf("Initial ACK received: %v\n", ack)
-//	if err != nil {
-//		return errors.New("error parsing ack packet: " + err.Error())
-//	}
-//	if ack.BlockNumber != 0 {
-//		return errors.New("error parsing ack packet: block number should be 0")
-//	}
-//
-//	for {
-//		if c.nextSeqNum < c.base+c.windowSize && c.nextSeqNum <= uint16(len(c.dataBlocks)) {
-//			// send data packet
-//			// Send data packet, c.nextSeqNum is the next sequence number to send
-//			// -1 because nextSeqNum is 1 indexed
-//			_, err = c.conn.Write(c.dataBlocks[c.nextSeqNum-1].ToBytes())
-//			c.nextSeqNum++
-//			if err != nil {
-//				c.sendAbort()
-//				return errors.New("error sending data packet: " + err.Error())
-//			}
-//
-//		}
-//	}
-//}
-
 func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	// Initialize variables
 	var ack tftp.Ack
@@ -108,7 +73,6 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 		}
 		for nextSeqNum < base+windowSize && nextSeqNum <= len(c.dataBlocks) {
 			packet = c.dataBlocks[nextSeqNum-1].ToBytes()
-			//_, err = c.conn.Write(packet)
 			_, err = c.conn.WriteToUDP(packet, addr)
 
 			log.Printf("Sending packet %d\n", nextSeqNum)

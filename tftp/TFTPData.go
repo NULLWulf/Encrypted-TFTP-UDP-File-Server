@@ -81,29 +81,10 @@ func PrepareData(data []byte, blockSize int) (dataQueue []*Data, err error) {
 		}
 
 		// Create the TFTPData packet
-
 		dataQueue[i], err = NewData(uint16(i), data[start:end])
 		if err != nil {
 			return
 		}
 	}
 	return
-}
-
-func RebuildData(data []*Data) []byte {
-	// Calculate the length of the data
-	dataLength := 0
-	for _, d := range data {
-		dataLength += len(d.Data)
-	}
-
-	// Reconstruct the data
-	rebuiltData := make([]byte, dataLength)
-	offset := 0
-	for _, d := range data {
-		copy(rebuiltData[offset:], d.Data)
-		offset += len(d.Data)
-	}
-
-	return rebuiltData
 }

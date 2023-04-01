@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 )
 
 func NewTFTPClient() (*TFTPProtocol, error) {
@@ -32,33 +33,37 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 	return &TFTPProtocol{conn: conn, raddr: remoteAddr, xferSize: 0}, nil
 }
 
-func (c *TFTPProtocol) RequestFile(url string) (tData []byte, err error) {
+func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTime float64) {
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, nil)
 	packet, _ := reqPack.ToBytes()
 	c.SetProtocolOptions(nil, 0)
+	startTime := time.Now().UnixNano()
 	_, err = c.conn.Write(packet)
 	if err != nil {
 		log.Printf("Error sending request packet: %s\n", err)
-		return
+		return err, nil, 0
 	}
-	d, err := c.preDataTransfer()
+	err = c.preDataTransfer()
+	endTime := time.Now().UnixNano()
+	transTime = float64(endTime - startTime)
+
+	data = c.rebuilData()
 	if err != nil {
 		log.Printf("Error in preDataTransfer: %s\n", err)
-		return nil, err
+		return err, nil, 0
 	}
-	return d, nil
+	return nil, data, transTime
 }
 
-func (c *TFTPProtocol) preDataTransfer() ([]byte, error) {
+func (c *TFTPProtocol) preDataTransfer() error {
 	packet := make([]byte, 516)
 	cont := true
 	err := error(nil)
-	finish := false
 
 	for {
 		n, tErr := c.conn.Read(packet)
 		if tErr != nil {
-			return nil, fmt.Errorf("error reading packet: %s", err)
+			return fmt.Errorf("error reading packet: %s", err)
 		}
 		packet = packet[:n]
 		code := binary.BigEndian.Uint16(packet[:2])
@@ -68,36 +73,30 @@ func (c *TFTPProtocol) preDataTransfer() ([]byte, error) {
 			var errPack tftp.Error
 			err = errPack.Parse(packet)
 			if err != nil {
-				return nil, err
+				return err
 			}
-			return nil, fmt.Errorf("error code %d: %s", errPack.ErrorCode, errPack.ErrorMessage)
+			return fmt.Errorf("error code %d: %s", errPack.ErrorCode, errPack.ErrorMessage)
 		case tftp.TFTPOpcodeTERM:
 			log.Printf("Server terminated connection: %s\n", packet)
-			return nil, fmt.Errorf("server terminated connection")
+			return fmt.Errorf("server terminated connection")
 		case tftp.TFTPOpcodeOACK:
 			log.Printf("Received OACK packet: %s\n", packet)
 			var oackPack tftp.OptionAcknowledgement
 			err = oackPack.Parse(packet)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing OACK packet: %s", err)
+				return fmt.Errorf("error parsing OACK packet: %s", err)
 			}
-			err, finish = c.TftpClientTransferLoop(c.conn)
+			err, cont = c.TftpClientTransferLoop(c.conn)
 			if err != nil {
-				return nil, fmt.Errorf("error in transfer loop: %s", err)
+				return fmt.Errorf("error in transfer loop: %s", err)
 			}
-			cont = false
 		default:
 			log.Printf("Received unexpected packet: %s\n", packet)
 		}
-		if !cont {
-			break
+		if cont {
+			log.Printf("Transfer complete\n")
+			return nil
 		}
 	}
-
-	if finish {
-		d := tftp.RebuildData(c.dataBlocks)
-		return d, nil
-	}
 	// WIP
-	return nil, nil
 }

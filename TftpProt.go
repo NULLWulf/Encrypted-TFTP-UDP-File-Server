@@ -23,6 +23,7 @@ type TFTPProtocol struct {
 	maxRetries      int                   // Maximum number of retries
 	backoff         int                   // Backoff time
 	timeout         int                   // Timeout
+	totalFrames     int                   // Total number of frames
 	receivedPackets map[uint16]*tftp.Data // Received packets
 }
 
@@ -109,8 +110,17 @@ func (c *TFTPProtocol) appendFileDate(data *tftp.Data) {
 		return
 	}
 	c.receivedPackets[data.BlockNumber] = data
-	if data.BlockNumber == 11 {
-		c.nextSeqNum++
-	}
+	c.totalFrames++
+	//if data.BlockNumber == 11 {
+	//	c.nextSeqNum++
+	//}
 	return
+}
+
+func (c *TFTPProtocol) rebuilData() []byte {
+	var data []byte
+	for i := 1; i <= c.totalFrames; i++ {
+		data = append(data, c.receivedPackets[uint16(i)].Data...)
+	}
+	return data
 }
