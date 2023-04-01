@@ -2,9 +2,9 @@ package main
 
 import (
 	"github.com/julienschmidt/httprouter"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 )
 
@@ -50,7 +50,7 @@ func getImage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		return
 	}
 	// save the image
-	err = ioutil.WriteFile("test.jpg", img, 7777)
+	err = os.WriteFile("image.jpg", img, 0644)
 
 	w.Header().Set("Content-Type", "image/jpeg")
 	_, err = w.Write(img)

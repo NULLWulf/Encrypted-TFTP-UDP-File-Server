@@ -45,24 +45,27 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	}
 }
 
+// sender is the main loop for the sender side of the TFTP protocol
+// It sends data blocks and waits for ACKs.  If an ACK is not received
+// within the timeout period, the data block is resent.  If an error
+// occurs, the error is logged and the loop is exited.
 func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	// Initialize variables
-	var ack tftp.Ack
+	var ack tftp.Ack //
 	log.Println("Starting sender transfer TFTP loop")
-	packet := make([]byte, 516)
-	windowSize := 8
-	base := 1
-	nextSeqNum := 1
-	n, _ := c.conn.Read(packet)
-	c.ADti(n)
-	packet = packet[:n]
-	err := ack.Parse(packet)
+	packet := make([]byte, 520)                            //Byte buffer
+	windowSize, base, nextSeqNum, dropProb := 8, 1, 1, .20 //Window size, base, next sequence number, and drop probability
+	n, _ := c.conn.Read(packet)                            //Read the initial ACK
+	c.ADti(n)                                              // Add to the total bytes received to running outgoing total
+	packet = packet[:n]                                    //Trim the packet to the size of the data received
+	err := ack.Parse(packet)                               //
 	log.Printf("Initial ACK received: %v\n", ack)
 	if err != nil {
 		return errors.New("error parsing ack packet: " + err.Error())
 	}
 	if ack.BlockNumber != 0 {
-		return errors.New("error parsing ack packet: block number should be 0")
+		c.sendError(3, "Expected initial block number to be 0")
+		return errors.New("error parsing ack packet: block number should be 0, expecting initial block")
 	}
 
 	// Loop until all data blocks have been sent and acknowledged
@@ -70,7 +73,8 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 
 		// Send packets within the window size
 		for nextSeqNum < base+windowSize && nextSeqNum <= len(c.dataBlocks) {
-			if rand.Float64() < .20 && DropPax {
+			if rand.Float64() < dropProb && DropPax { //DropPax is a global variable that is set to true if the user wants to simulate packet loss
+				// uses probability of 0.2 to drop a packet
 				log.Printf("Dropped packet %d\n", nextSeqNum)
 				nextSeqNum--
 				continue
