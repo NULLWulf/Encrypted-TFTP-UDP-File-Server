@@ -20,6 +20,8 @@ import (
 	"net"
 )
 
+// NewTFTPClient method constructs a new TFTPProtocol struct
+// TODO - add in a parameter for the port number and address
 func NewTFTPClient() (*TFTPProtocol, error) {
 	remoteAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:7500")
 	if err != nil {
@@ -33,33 +35,38 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 	return &TFTPProtocol{conn: conn, raddr: remoteAddr, xferSize: 0}, nil
 }
 
+// RequestFile method sends a request packet to the server and begins the transfer process
+// / and returns the data
 func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTime float64) {
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, nil)
 	packet, _ := reqPack.ToBytes()
-	c.SetProtocolOptions(nil, 0)
-	c.StartTime()
-	n, err := c.conn.Write(packet)
-	c.ADto(n)
+	c.SetProtocolOptions(nil, 0)   // sets the protocol options
+	c.StartTime()                  // starts the timer
+	n, err := c.conn.Write(packet) // sends the request packet
+	c.ADto(n)                      // adds the number of bytes sent to the total bytes sent running total
 	if err != nil {
 		log.Printf("Error sending request packet: %s\n", err)
 		return err, nil, 0
 	}
 	err = c.preDataTransfer() // starts the transfer process
-	c.EndTime()
-	c.DisplayStats()
-	data = c.rebuildData()
+	c.EndTime()               // ends the timer
+	c.DisplayStats()          // displays the stats regarding the transfer
 	if err != nil {
 		log.Printf("Error in preDataTransfer: %s\n", err)
 		return err, nil, 0
 	}
+	data = c.rebuildData() // rebuilds the data from the data packets received
 	return nil, data, 0
 }
 
+// preDataTransfer method handles the OACK packet and any error packets
 func (c *TFTPProtocol) preDataTransfer() error {
 	packet := make([]byte, 516)
 	cont := true
 	err := error(nil)
 
+	// loop until we receive an error, term or oack packet
+	// any errors or terms at this stage simply terminate the connection
 	for {
 		n, tErr := c.conn.Read(packet)
 		c.ADti(n)
@@ -87,7 +94,8 @@ func (c *TFTPProtocol) preDataTransfer() error {
 			if err != nil {
 				return fmt.Errorf("error parsing OACK packet: %s", err)
 			}
-			err, cont = c.TftpClientTransferLoop(c.conn)
+			err, cont = c.TftpClientTransferLoop(c.conn) // starts the transfer loop, returns error and bool
+			// signifying if the transfer is complete or not, and error would terminate the transfer
 			if err != nil {
 				return fmt.Errorf("error in transfer loop: %s", err)
 			}
@@ -99,5 +107,4 @@ func (c *TFTPProtocol) preDataTransfer() error {
 			return nil
 		}
 	}
-	// WIP
 }

@@ -8,10 +8,12 @@ import (
 	"net/http"
 )
 
+// ImageQueueObj is a queue of images
 type ImageQueueObj struct {
 	Queue *list.List
 }
 
+// NewImageQueueObj creates a new ImageQueueObj
 func NewImageQueueObj() *ImageQueueObj {
 	return &ImageQueueObj{
 		Queue: list.New(),

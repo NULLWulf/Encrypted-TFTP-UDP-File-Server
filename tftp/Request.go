@@ -8,6 +8,7 @@ import (
 	"log"
 )
 
+// Request represents a TFTP request packet.
 type Request struct {
 	Opcode       TFTPOpcode
 	Filename     []byte
@@ -17,6 +18,7 @@ type Request struct {
 	WindowSize   uint16
 }
 
+// Parse method parses a byte array into a Request struct
 func (r *Request) Parse(p []byte) error {
 	bs := bytes.Split(p[2:], []byte{0})
 	if len(bs) < 2 {
@@ -33,6 +35,8 @@ func (r *Request) Parse(p []byte) error {
 	}
 	return nil
 }
+
+// ToBytes method converts the Request struct to a byte array packet
 func (r *Request) ToBytes() ([]byte, error) {
 	// Check that the filename is not empty
 	if len(r.Filename) == 0 {
@@ -71,6 +75,7 @@ func (r *Request) ToBytes() ([]byte, error) {
 	return packet, nil
 }
 
+// NewReq method constructs a new Request struct
 func NewReq(filename []byte, mode []byte, transferSize uint32, options map[string][]byte) (*Request, error) {
 	// Check that the filename is not empty
 	if filename == nil || string(filename) == "" {
@@ -102,6 +107,7 @@ func NewReq(filename []byte, mode []byte, transferSize uint32, options map[strin
 	return request, nil
 }
 
+// String method prints the Request struct
 func (r *Request) String() {
 	var optionsString string
 	for key, value := range r.Options {

@@ -5,6 +5,11 @@ import (
 	"log"
 )
 
+/*
+Tests related to the TFTP packets, probably will remove before sending in
+TODO - remove this file before sending in
+*/
+
 type Test struct {
 }
 
@@ -90,7 +95,7 @@ func (t Test) Test() {
 	//t.Error()
 	//t.Ack()
 	//t.Oack()
-	
+
 }
 
 func Xor(data []byte, key []byte) []byte {

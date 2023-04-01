@@ -3,62 +3,11 @@ package tftp
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"log"
 )
 
-// Error TFTPError represents a TFTP error packet.
-type Error struct {
-	Opcode       TFTPOpcode
-	ErrorCode    uint16
-	ErrorMessage []byte
-}
-
-func NewErr(errorCode uint16, errorMessage []byte) *Error {
-	return &Error{
-		Opcode:       TFTPOpcodeERROR,
-		ErrorCode:    errorCode,
-		ErrorMessage: errorMessage,
-	}
-}
-
-func (err *Error) ToBytes() []byte {
-	// Allocate a byte slice to hold the packet.
-	packet := make([]byte, 4+len(err.ErrorMessage))
-	// Set the opcode and error code in the packet.
-	binary.BigEndian.PutUint16(packet[:2], uint16(err.Opcode))
-	binary.BigEndian.PutUint16(packet[2:4], err.ErrorCode)
-	// Copy the error message into the packet.
-	copy(packet[4:], err.ErrorMessage)
-	return packet
-}
-
-func (err *Error) Parse(packet []byte) error {
-	// Check that the packet is at least 5 bytes long
-	if len(packet) < 5 {
-		return errors.New("packet too short")
-	}
-
-	// Check that the opcode is valid
-	opcode := binary.BigEndian.Uint16(packet[:2])
-	if opcode != uint16(TFTPOpcodeERROR) {
-		return errors.New("invalid opcode")
-	}
-	// Parse the error code
-	errorCode := binary.BigEndian.Uint16(packet[2:4])
-
-	// Parse the error message
-	errorMessage := packet[4:]
-
-	// Set the fields in the error packet
-	err.Opcode = TFTPOpcodeERROR
-	err.ErrorCode = errorCode
-	err.ErrorMessage = errorMessage
-
-	return nil
-}
-
+// OptionAcknowledgement represents a TFTP option acknowledgement packet.
 type OptionAcknowledgement struct {
 	Opcode     TFTPOpcode
 	Options    map[string][]byte
@@ -68,6 +17,7 @@ type OptionAcknowledgement struct {
 	Key        []byte
 }
 
+// NewOpt1 creates a new option acknowledgement packet.
 func NewOpt1(windowsize uint16, xfer uint32, blksize uint16, key []byte) *OptionAcknowledgement {
 	options := make(map[string][]byte, 4)
 
@@ -96,10 +46,11 @@ func NewOpt1(windowsize uint16, xfer uint32, blksize uint16, key []byte) *Option
 	}
 }
 
-func (oack *OptionAcknowledgement) ToBytes() []byte {
+// ToBytes converts the option acknowledgement into a byte slice.
+func (oa *OptionAcknowledgement) ToBytes() []byte {
 	// Create a byte buffer to store the options.
 	var buf bytes.Buffer
-	for k, v := range oack.Options {
+	for k, v := range oa.Options {
 		buf.WriteString(k)
 		buf.WriteByte(0)
 		buf.Write(v)
@@ -113,7 +64,7 @@ func (oack *OptionAcknowledgement) ToBytes() []byte {
 	packet := make([]byte, packetLength)
 
 	// Set the opcode in the first two bytes of the packet.
-	binary.BigEndian.PutUint16(packet[:2], uint16(oack.Opcode))
+	binary.BigEndian.PutUint16(packet[:2], uint16(oa.Opcode))
 
 	// Copy the options into the remaining bytes of the packet.
 	copy(packet[2:], buf.Bytes())
@@ -121,7 +72,8 @@ func (oack *OptionAcknowledgement) ToBytes() []byte {
 	return packet
 }
 
-func (oack *OptionAcknowledgement) Parse(packet []byte) error {
+// Parse parses the given packet into the option acknowledgement.
+func (oa *OptionAcknowledgement) Parse(packet []byte) error {
 	log.Printf("Received Oack Packet")
 	if len(packet) < 2 {
 		return fmt.Errorf("packet too short")
@@ -179,6 +131,7 @@ func (oack *OptionAcknowledgement) Parse(packet []byte) error {
 	return nil
 }
 
+// String returns a string representation of the option acknowledgement.
 func (oa *OptionAcknowledgement) String() string {
 	var optionsStr string
 	for k, v := range oa.Options {
