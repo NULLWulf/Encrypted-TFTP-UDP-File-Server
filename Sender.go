@@ -31,14 +31,11 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		c.sendError(4, "Illegal TFTP operation")
 		return
 	}
-
-	//start := time.Now().UnixNano()
 	_, err = c.conn.WriteToUDP(opAck.ToBytes(), addr)
 	if err != nil {
 		c.sendError(10, "Illegal TFTP operation")
 		return
 	}
-
 	err = c.sender(addr)
 	if err != nil {
 		c.sendError(21, "Illegal TFTP operation")
@@ -68,14 +65,11 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	// Loop until all data blocks have been sent and acknowledged
 	for base <= len(c.dataBlocks) {
 		// Send packets within the window size
-		if nextSeqNum == 8 {
-			log.Printf("Catching up to base: %d\n", base)
-		}
 		for nextSeqNum < base+windowSize && nextSeqNum <= len(c.dataBlocks) {
 			packet = c.dataBlocks[nextSeqNum-1].ToBytes()
 			_, err = c.conn.WriteToUDP(packet, addr)
 
-			log.Printf("Sending packet %d\n", nextSeqNum)
+			log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
 			if err != nil {
 				c.sendAbort()
 				return fmt.Errorf("error sending data packet: %s", err)

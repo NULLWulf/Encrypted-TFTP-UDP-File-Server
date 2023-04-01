@@ -65,10 +65,11 @@ func NewData(blockNumber uint16, data []byte) (*Data, error) {
 func PrepareData(data []byte, blockSize int) (dataQueue []*Data, err error) {
 	// Create a slice of TFTPData packets
 	blocks := len(data) / blockSize
-	log.Printf("Length of data: %d, Block size: %d, Blocks: %d", len(data), blockSize, blocks)
 	if len(data)%blockSize != 0 {
 		blocks++
 	}
+	log.Printf("Length of data: %d, Block size: %d, Blocks: %d", len(data), blockSize, blocks)
+
 	dataQueue = make([]*Data, blocks)
 
 	// Populate the slice with TFTPData packets

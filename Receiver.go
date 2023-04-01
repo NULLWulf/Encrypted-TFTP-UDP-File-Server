@@ -27,12 +27,8 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 		return errors.New("error sending initial ACK packet: " + err.Error()), false
 	}
 	for {
-		// receive data packet from server
-		//n, err, _ = c.conn.ReadFromUDP(dataPacket)
 		n, err := conn.Read(dataPacket)
 		dataPacket = dataPacket[:n] // trim packet to size of data
-		//dataPacket = dataPacket[:n] // trim packet to size of data
-		// get opcode
 		opcode := binary.BigEndian.Uint16(dataPacket[:2])
 		switch tftp.TFTPOpcode(opcode) {
 		case tftp.TFTPOpcodeERROR:
