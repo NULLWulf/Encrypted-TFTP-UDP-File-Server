@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 )
 
@@ -26,7 +27,7 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	}
 	c.SetProtocolOptions(nil, 0)
 	opAck := tftp.NewOpt1(c.blockSize, c.xferSize, c.blockSize, []byte("octet"))
-	c.dataBlocks, err = tftp.PrepareData(img, int(c.blockSize))
+	c.dataBlocks, err = PrepareData(img, int(c.blockSize))
 	if err != nil {
 		c.sendError(4, "Illegal TFTP operation")
 		return
@@ -66,8 +67,15 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 
 	// Loop until all data blocks have been sent and acknowledged
 	for base <= len(c.dataBlocks) {
+
 		// Send packets within the window size
 		for nextSeqNum < base+windowSize && nextSeqNum <= len(c.dataBlocks) {
+			if rand.Float64() < .20 && DropPax {
+				log.Printf("Dropped packet %d\n", nextSeqNum)
+				nextSeqNum--
+				continue
+			}
+
 			packet = c.dataBlocks[nextSeqNum-1].ToBytes()
 			n, err = c.conn.WriteToUDP(packet, addr)
 			c.ADto(n)

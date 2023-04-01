@@ -75,7 +75,7 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) (endOfFile bool) {
 		if len(dataPack.Data) < 512 {
 			// last data block received, end of file
 			log.Printf("Last data block received, end of file\n")
-			c.sendAck(c.nextSeqNum - 1)
+			c.sendAck(dataPack.BlockNumber)
 			return true
 		}
 		c.sendAck(c.nextSeqNum)

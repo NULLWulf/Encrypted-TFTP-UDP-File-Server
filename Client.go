@@ -11,13 +11,13 @@
 // 6) Begin Sliding Window Protocol of Data
 package main
 
+import "C"
 import (
 	"CSC445_Assignment2/tftp"
 	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
-	"time"
 )
 
 func NewTFTPClient() (*TFTPProtocol, error) {
@@ -37,7 +37,7 @@ func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTim
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, nil)
 	packet, _ := reqPack.ToBytes()
 	c.SetProtocolOptions(nil, 0)
-	c.requestEnd = time.Now().UnixNano()
+	c.StartTime()
 	n, err := c.conn.Write(packet)
 	c.ADto(n)
 	if err != nil {
@@ -45,8 +45,8 @@ func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTim
 		return err, nil, 0
 	}
 	err = c.preDataTransfer() // starts the transfer process
-	c.requestEnd = time.Now().UnixNano()
-
+	c.EndTime()
+	c.DisplayStats()
 	data = c.rebuildData()
 	if err != nil {
 		log.Printf("Error in preDataTransfer: %s\n", err)

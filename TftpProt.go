@@ -3,7 +3,6 @@ package main
 import (
 	"CSC445_Assignment2/tftp"
 	"encoding/binary"
-	"fmt"
 	"log"
 	"net"
 	"time"
@@ -104,12 +103,12 @@ func (c *TFTPProtocol) SetTransferSize(size uint32) {
 // appendFileDate appends the file date to the data packet
 // and also keeps track of duplicate packets and discards \
 // any already stored.  duplicate packets are checked via a
-// struct in the TFTP procol
+// struct in the TFTP protocol struct
 
 func (c *TFTPProtocol) appendFileDate(data *tftp.Data) {
 	// Check if the packet is already stored
 	if _, exists := c.receivedPackets[data.BlockNumber]; exists {
-		fmt.Println("Duplicate packet, discarding")
+		log.Println("Duplicate packet, discarding")
 		return
 	}
 	c.receivedPackets[data.BlockNumber] = data
@@ -139,17 +138,53 @@ func (c *TFTPProtocol) rebuildData() []byte {
 	return data
 }
 
-func (c *TFTPProtocol) calcRawThroughput() int {
-	// Calculate the raw throughput in bytes per second
-	return c.dataThroughIn / int(c.requestEnd-c.requestStart)
-}
-
-func (c *TFTPProtocol) Start() {
+func (c *TFTPProtocol) StartTime() {
 	// Start the protocol
 	c.requestStart = time.Now().UnixNano()
 }
 
-func (c *TFTPProtocol) End() {
+func (c *TFTPProtocol) EndTime() {
 	// End the protocol
 	c.requestEnd = time.Now().UnixNano()
+}
+
+func (c *TFTPProtocol) DisplayStats() {
+	log.Println("Total frames received:", c.totalFrames)
+	log.Println("Total bytes received:", c.dataThroughIn)
+	log.Println("Total bytes sent:", c.dataThroughOut)
+	nanos := time.Duration(c.requestEnd - c.requestStart)
+	bytesToMegaBit := float64(c.dataThroughIn+c.dataThroughOut) / 8
+	through := bytesToMegaBit / nanos.Seconds()
+	log.Println("Raw throughput: ", through, "Mbps")
+}
+
+func PrepareData(data []byte, blockSize int) (dataQueue []*tftp.Data, err error) {
+	// Create a slice of TFTPData packets
+	blocks := len(data) / blockSize
+	if len(data)%blockSize != 0 {
+		blocks++
+	}
+	log.Printf("Length of data: %d, Block size: %d, Blocks: %d", len(data), blockSize, blocks)
+	dataQueue = make([]*tftp.Data, blocks)
+
+	// Populate the slice with TFTPData packets
+	for i := 0; i < blocks; i++ {
+		// Calculate the start and end indices of the data
+		start := i * blockSize
+		end := start + blockSize
+		if end > len(data) {
+			end = len(data)
+		}
+		// Create the TFTPData packet
+		// data que append
+		dataQueue[i], err = tftp.NewData(uint16(i)+1, data[start:end])
+		// on a something percent chance duplicate the packet and add it to the queue
+		// and decrement the drops counter and increase the probability of dropping
+		// Randomly duplicate a data block before adding it to the queue
+
+		if err != nil {
+			return
+		}
+	}
+	return
 }
