@@ -31,7 +31,8 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		c.sendError(4, "Illegal TFTP operation")
 		return
 	}
-	_, err = c.conn.WriteToUDP(opAck.ToBytes(), addr)
+	n, err := c.conn.WriteToUDP(opAck.ToBytes(), addr)
+	c.ADto(n)
 	if err != nil {
 		c.sendError(10, "Illegal TFTP operation")
 		return
@@ -52,6 +53,7 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	base := 1
 	nextSeqNum := 1
 	n, _ := c.conn.Read(packet)
+	c.ADti(n)
 	packet = packet[:n]
 	err := ack.Parse(packet)
 	log.Printf("Initial ACK received: %v\n", ack)
@@ -67,8 +69,8 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 		// Send packets within the window size
 		for nextSeqNum < base+windowSize && nextSeqNum <= len(c.dataBlocks) {
 			packet = c.dataBlocks[nextSeqNum-1].ToBytes()
-			_, err = c.conn.WriteToUDP(packet, addr)
-
+			n, err = c.conn.WriteToUDP(packet, addr)
+			c.ADto(n)
 			log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
 			if err != nil {
 				c.sendAbort()
@@ -77,6 +79,7 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 			nextSeqNum++
 
 			n, _ = c.conn.Read(packet)
+			c.ADti(n)
 			packet = packet[:n]
 			opcode := binary.BigEndian.Uint16(packet[:2])
 			switch tftp.TFTPOpcode(opcode) {
@@ -98,6 +101,7 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 
 		// Check if all packets have been sent and acknowledged
 		if base > len(c.dataBlocks) {
+			log.Printf("All packets sent and acknowledged\n")
 			break
 		}
 	}

@@ -51,6 +51,7 @@ func (c *TFTPProtocol) handleConnectionsUDP() {
 }
 
 func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
+	c.ADti(len(buf))
 	code := binary.BigEndian.Uint16(buf[:2])
 	switch tftp.TFTPOpcode(code) {
 	case tftp.TFTPOpcodeRRQ:

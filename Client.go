@@ -37,22 +37,22 @@ func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTim
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, nil)
 	packet, _ := reqPack.ToBytes()
 	c.SetProtocolOptions(nil, 0)
-	startTime := time.Now().UnixNano()
-	_, err = c.conn.Write(packet)
+	c.requestEnd = time.Now().UnixNano()
+	n, err := c.conn.Write(packet)
+	c.ADto(n)
 	if err != nil {
 		log.Printf("Error sending request packet: %s\n", err)
 		return err, nil, 0
 	}
-	err = c.preDataTransfer()
-	endTime := time.Now().UnixNano()
-	transTime = float64(endTime - startTime)
+	err = c.preDataTransfer() // starts the transfer process
+	c.requestEnd = time.Now().UnixNano()
 
-	data = c.rebuilData()
+	data = c.rebuildData()
 	if err != nil {
 		log.Printf("Error in preDataTransfer: %s\n", err)
 		return err, nil, 0
 	}
-	return nil, data, transTime
+	return nil, data, 0
 }
 
 func (c *TFTPProtocol) preDataTransfer() error {
@@ -62,6 +62,7 @@ func (c *TFTPProtocol) preDataTransfer() error {
 
 	for {
 		n, tErr := c.conn.Read(packet)
+		c.ADti(n)
 		if tErr != nil {
 			return fmt.Errorf("error reading packet: %s", err)
 		}

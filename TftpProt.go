@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 )
 
 type TFTPProtocol struct {
@@ -24,11 +25,11 @@ type TFTPProtocol struct {
 	backoff         int                   // Backoff time
 	timeout         int                   // Timeout
 	totalFrames     int                   // Total number of frames
+	dataThroughIn   int                   // Data throughput in
+	dataThroughOut  int                   // Data throughput out
+	requestStart    int64                 // Time when the request was sent
+	requestEnd      int64                 // Time when the request was received
 	receivedPackets map[uint16]*tftp.Data // Received packets
-}
-
-func (c *TFTPProtocol) Close() error {
-	return c.conn.Close()
 }
 
 // SetProtocolOptions sets the protocol options for the TFTP protocol
@@ -58,11 +59,12 @@ func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
 func (c *TFTPProtocol) sendError(errCode uint16, errMsg string) {
 	log.Printf("Sending error packet: %d %s\n", errCode, errMsg)
 	errPack := tftp.NewErr(errCode, []byte(errMsg))
-	_, err := c.conn.Write(errPack.ToBytes())
+	n, err := c.conn.Write(errPack.ToBytes())
 	if err != nil {
 		log.Println("Error sending error packet:", err)
 		return
 	}
+	c.ADto(n)
 }
 
 func (c *TFTPProtocol) sendAbort() {
@@ -71,7 +73,8 @@ func (c *TFTPProtocol) sendAbort() {
 
 func (c *TFTPProtocol) sendAck(nextSeqNum uint16) {
 	ack := tftp.NewAck(nextSeqNum)
-	_, err := c.conn.Write(ack.ToBytes())
+	n, err := c.conn.Write(ack.ToBytes())
+	c.ADto(n)
 	log.Printf("Sending ACK packet: %d\n", ack.BlockNumber)
 	if err != nil {
 		log.Println("Error sending ACK packet:", err)
@@ -111,16 +114,42 @@ func (c *TFTPProtocol) appendFileDate(data *tftp.Data) {
 	}
 	c.receivedPackets[data.BlockNumber] = data
 	c.totalFrames++
-	//if data.BlockNumber == 11 {
-	//	c.nextSeqNum++
-	//}
 	return
 }
 
-func (c *TFTPProtocol) rebuilData() []byte {
+// ADto is the cumulative data throughput out in bytes
+func (c *TFTPProtocol) ADto(n int) {
+	c.dataThroughOut += n
+}
+
+// ADti is the cumulative data throughput in in bytes
+func (c *TFTPProtocol) ADti(n int) {
+	c.dataThroughIn += n
+}
+
+func (c *TFTPProtocol) Close() error {
+	return c.conn.Close()
+}
+
+func (c *TFTPProtocol) rebuildData() []byte {
 	var data []byte
 	for i := 1; i <= c.totalFrames; i++ {
 		data = append(data, c.receivedPackets[uint16(i)].Data...)
 	}
 	return data
+}
+
+func (c *TFTPProtocol) calcRawThroughput() int {
+	// Calculate the raw throughput in bytes per second
+	return c.dataThroughIn / int(c.requestEnd-c.requestStart)
+}
+
+func (c *TFTPProtocol) Start() {
+	// Start the protocol
+	c.requestStart = time.Now().UnixNano()
+}
+
+func (c *TFTPProtocol) End() {
+	// End the protocol
+	c.requestEnd = time.Now().UnixNano()
 }

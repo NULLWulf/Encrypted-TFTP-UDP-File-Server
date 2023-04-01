@@ -28,6 +28,7 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 	}
 	for {
 		n, err := conn.Read(dataPacket)
+		c.ADti(n)
 		dataPacket = dataPacket[:n] // trim packet to size of data
 		opcode := binary.BigEndian.Uint16(dataPacket[:2])
 		switch tftp.TFTPOpcode(opcode) {
