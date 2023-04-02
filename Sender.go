@@ -208,8 +208,6 @@ func (c *TFTPProtocol) sender2(addr *net.UDPAddr) error {
 			c.sendAbort()
 			return fmt.Errorf("error sending data packet: %s", err)
 		}
-		// ... (unchanged code)
-
 		nextSeqNum++
 	}
 

@@ -88,7 +88,7 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) (endOfFile bool) {
 			c.sendAck(c.nextSeqNum - 1)
 		}
 	} else { // duplicate packet or out of order packet
-		// send ACK for previous packet on  routine
+		// send ACK for previous packet
 		c.sendAck(c.nextSeqNum - 1)
 	}
 	return false // not last data block
