@@ -23,7 +23,7 @@ import (
 // NewTFTPClient method constructs a new TFTPProtocol struct
 // TODO - add in a parameter for the port number and address
 func NewTFTPClient() (*TFTPProtocol, error) {
-	remoteAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:7500")
+	remoteAddr, err := net.ResolveUDPAddr("udp", Address)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (c *TFTPProtocol) preDataTransfer() error {
 		default:
 			log.Printf("Received unexpected packet: %s\n", packet)
 		}
-		if cont {
+		if cont { // if the transfer is complete, return nil error
 			log.Printf("Transfer complete\n")
 			return nil
 		}

@@ -56,6 +56,7 @@ func getImage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	err = os.WriteFile("image.jpg", img, 7777) // save the image
 
 	w.Header().Set("Content-Type", "image/jpeg") // set the content type
-	_, err = w.Write(img)
+	n, err := w.Write(img)
+	log.Printf("Serving image of size: %d\n", n)
 	return
 }
