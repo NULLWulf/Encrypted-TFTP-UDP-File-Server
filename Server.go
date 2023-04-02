@@ -47,7 +47,6 @@ func (c *TFTPProtocol) handleConnectionsUDP() {
 			log.Printf("Error closing connection: %s\n", err)
 		}
 	}
-	//}()
 }
 
 func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {

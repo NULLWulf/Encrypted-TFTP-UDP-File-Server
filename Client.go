@@ -38,7 +38,11 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 // RequestFile method sends a request packet to the server and begins the transfer process
 // / and returns the data
 func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTime float64) {
-	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, nil)
+	// make a map with a key field
+	options := make(map[string][]byte)
+	// add a 10 digit key to map
+	options["key"] = []byte("1234567890")
+	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, options)
 	packet, _ := reqPack.ToBytes()
 	c.SetProtocolOptions(nil, 0)   // sets the protocol options
 	c.StartTime()                  // starts the timer

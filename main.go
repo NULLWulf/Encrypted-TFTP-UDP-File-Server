@@ -15,7 +15,7 @@ func main() {
 	// Run the application in the specified mode
 	if Mode == "server" {
 		IQ = NewImageQueueObj()
-		log.Printf("Running in server mode\n")
+		log.Printf("Running in server mode on port %d with window size %d\n", Port, WindowSize)
 		RunServerMode()
 	} else {
 		log.Printf("Running in client mode\n")

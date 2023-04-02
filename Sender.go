@@ -58,12 +58,12 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	var ack tftp.Ack
 	log.Println("Starting sender transfer TFTP loop")
-	packet := make([]byte, 520)                                                    //Byte slice "buffer"
-	windowSize, base, nextSeqNum, dropProb, consecutiveTimeouts := 8, 1, 1, .20, 0 //Window size, base, next sequence number, and drop probability
-	n, _ := c.conn.Read(packet)                                                    //Read the initial ACK
-	c.ADti(n)                                                                      // Add to the total bytes received to running outgoing total
-	packet = packet[:n]                                                            //Trim the packet to the size of the data received
-	err := ack.Parse(packet)                                                       // Parse the ACK
+	packet := make([]byte, 520)                                     //Byte slice "buffer"
+	base, nextSeqNum, dropProb, consecutiveTimeouts := 1, 1, .20, 0 //Window size, base, next sequence number, and drop probability
+	n, _ := c.conn.Read(packet)                                     //Read the initial ACK
+	c.ADti(n)                                                       // Add to the total bytes received to running outgoing total
+	packet = packet[:n]                                             //Trim the packet to the size of the data received
+	err := ack.Parse(packet)                                        // Parse the ACK
 	log.Printf("Initial ACK received: %v\n", ack)
 	if err != nil {
 		return errors.New("error parsing ack packet: " + err.Error())
@@ -75,7 +75,7 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 
 	// Loop until all data blocks have been sent and acknowledged
 	// Send packets within the window size
-	for nextSeqNum < base+windowSize && nextSeqNum <= len(c.dataBlocks) {
+	for nextSeqNum < base+WindowSize && nextSeqNum <= len(c.dataBlocks) {
 		if rand.Float64() < dropProb && DropPax { //DropPax is a global variable that is set to true if the user wants to simulate packet loss
 			// uses probability of 0.2 to drop a packet
 			log.Printf("Dropped packet %d\n", nextSeqNum)
@@ -152,7 +152,7 @@ func (c *TFTPProtocol) sender2(addr *net.UDPAddr) error {
 	var ack tftp.Ack //
 	log.Println("Starting sender transfer TFTP loop")
 	packet := make([]byte, 520)                            //Byte buffer
-	windowSize, base, nextSeqNum, dropProb := 8, 1, 1, .20 //Window size, base, next sequence number, and drop probability
+	WindowSize, base, nextSeqNum, dropProb := 8, 1, 1, .20 //Window size, base, next sequence number, and drop probability
 	n, _ := c.conn.Read(packet)                            //Read the initial ACK
 	c.ADti(n)                                              // Add to the total bytes received to running outgoing total
 	packet = packet[:n]                                    //Trim the packet to the size of the data received
@@ -169,7 +169,7 @@ func (c *TFTPProtocol) sender2(addr *net.UDPAddr) error {
 	}
 
 	// Create channels for ACKs and errors
-	ackCh := make(chan tftp.Ack, windowSize)
+	ackCh := make(chan tftp.Ack, WindowSize)
 	errCh := make(chan error)
 
 	// Goroutine to receive ACKs
@@ -195,7 +195,7 @@ func (c *TFTPProtocol) sender2(addr *net.UDPAddr) error {
 	}()
 
 	// Send packets within the window size
-	for nextSeqNum < base+windowSize && nextSeqNum <= len(c.dataBlocks) {
+	for nextSeqNum < base+WindowSize && nextSeqNum <= len(c.dataBlocks) {
 		if rand.Float64() < dropProb && DropPax {
 			log.Printf("Dropped packet %d\n", nextSeqNum)
 			continue // do not increment nextSeqNum when a packet is dropped

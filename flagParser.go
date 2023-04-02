@@ -6,10 +6,11 @@ import (
 )
 
 var (
-	Address string
-	Mode    string
-	Port    int
-	DropPax bool
+	Address    string
+	Mode       string
+	Port       int
+	DropPax    bool
+	WindowSize int
 )
 
 // parseProgramArguments parses the command line arguments and sets the global variables based on them
@@ -20,6 +21,7 @@ func parseProgramArguments() {
 	flag.StringVar(&Address, "Address", "", "Remote address to connect to while in Client mode, this field is ignored when set in server mode.")
 	flag.IntVar(&Port, "Port", 7500, "Port the application will listen to while in server mode.")
 	flag.BoolVar(&DropPax, "DropPax", false, "Simulate dropping packets while in server mode.")
+	flag.IntVar(&WindowSize, "WindowSize", 4, "Size of the sliding window while in server mode.")
 	flag.Parse()
 
 	if Mode != "server" && Mode != "client" {
