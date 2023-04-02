@@ -18,11 +18,6 @@ type TFTPProtocol struct {
 	dataBlocks      []*tftp.Data          //Data packets to be sent
 	base            uint16                // Base of the window
 	nextSeqNum      uint16                // Next expected block number
-	retries         []int                 // Number of retries for each block
-	retryCount      int                   // Number of retries for the current block
-	maxRetries      int                   // Maximum number of retries
-	backoff         int                   // Backoff time
-	timeout         int                   // Timeout
 	totalFrames     int                   // Total number of frames
 	dataThroughIn   int                   // Data throughput in
 	dataThroughOut  int                   // Data throughput out
@@ -50,9 +45,9 @@ func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
 		c.key = options["key"]
 	}
 
-	c.key = []byte("1234567890123456")
+	c.key = []byte("1234567890")
 	c.blockSize = 512
-	c.windowSize = 4
+	c.windowSize = uint16(WindowSize)
 }
 
 func (c *TFTPProtocol) sendError(errCode uint16, errMsg string) {
@@ -104,16 +99,17 @@ func (c *TFTPProtocol) SetTransferSize(size uint32) {
 // and also keeps track of duplicate packets and discards \
 // any already stored.  duplicate packets are checked via a
 // struct in the TFTP protocol struct
-
-func (c *TFTPProtocol) appendFileDate(data *tftp.Data) {
+func (c *TFTPProtocol) appendFileDate(data *tftp.Data) bool {
 	// Check if the packet is already stored
 	if _, exists := c.receivedPackets[data.BlockNumber]; exists {
 		log.Println("Duplicate packet, discarding")
-		return
+		return false
+	} else {
+		log.Println("New packet, storing")
 	}
 	c.receivedPackets[data.BlockNumber] = data
 	c.totalFrames++
-	return
+	return true
 }
 
 // ADto is the cumulative data throughput out in bytes
@@ -148,12 +144,14 @@ func (c *TFTPProtocol) EndTime() {
 	c.requestEnd = time.Now().UnixNano()
 }
 
+// DisplayStats displays the stats for the protocol
+// such as throughput, total frames, total bytes, Mbps
 func (c *TFTPProtocol) DisplayStats() {
 	log.Println("Total frames received:", c.totalFrames)
 	log.Println("Total bytes received:", c.dataThroughIn)
 	log.Println("Total bytes sent:", c.dataThroughOut)
 	nanos := time.Duration(c.requestEnd - c.requestStart)
-	bytesToMegaBit := float64(c.dataThroughIn+c.dataThroughOut) / 8
+	bytesToMegaBit := (float64(c.dataThroughIn+c.dataThroughOut) * 8) / 1000000
 	through := bytesToMegaBit / nanos.Seconds()
 	log.Println("Raw throughput: ", through, "Mbps")
 }

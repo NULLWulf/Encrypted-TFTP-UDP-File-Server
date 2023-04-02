@@ -64,32 +64,67 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 // sent for the previous packet
 // if the data packet is not the next expected packet, an ACK is sent for the
 // previous packet
-func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) (endOfFile bool) {
+//func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) (endOfFile bool) {
+//	var dataPack tftp.Data
+//	err := dataPack.Parse(dataPacket)
+//	if err == nil && dataPack.BlockNumber == c.nextSeqNum {
+//		if dataPack.Checksm == tftp.Checksum(dataPack.Data) {
+//			log.Printf("\n-----------------\nReceived data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataPack.BlockNumber, dataPack.Data[0:10], len(dataPack.Data))
+//			//c.dataBlocks = append(c.dataBlocks, &dataPack)
+//			if !c.appendFileDate(&dataPack) {
+//				return false
+//			}
+//			c.appendFileDate(&dataPack)
+//			// send ACK for this packet on  routinel
+//			if len(dataPack.Data) < 512 {
+//				// last data block received, end of file
+//				log.Printf("Last data block received, end of file\n")
+//				c.sendAck(dataPack.BlockNumber)
+//				return true
+//			}
+//			c.sendAck(c.nextSeqNum) // send ACK for this packet
+//			c.nextSeqNum++          // increment for next packet
+//		} else { // checksum failed
+//			log.Printf("Calc Checksum: %v\n", tftp.Checksum(dataPack.Data))
+//			log.Printf("Received Checksum: %v\n", dataPack.Checksm)
+//			//log.Printf("Checksum failed, sending ACK for previous packet\n")
+//			c.sendAck(c.nextSeqNum - 1)
+//		}
+//	} else { // duplicate packet or out of order packet
+//		// send ACK for previous packet
+//		c.sendAck(c.nextSeqNum - 1)
+//	}
+//	return false // not last data block
+//}
+
+func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) bool {
 	var dataPack tftp.Data
 	err := dataPack.Parse(dataPacket)
-	if err == nil && dataPack.BlockNumber == c.nextSeqNum {
-		if dataPack.Checksm == tftp.Checksum(dataPack.Data) {
-			log.Printf("\n-----------------\nReceived data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataPack.BlockNumber, dataPack.Data[0:10], len(dataPack.Data))
-			//c.dataBlocks = append(c.dataBlocks, &dataPack)
-			c.appendFileDate(&dataPack)
-			// send ACK for this packet on  routinel
-			if len(dataPack.Data) < 512 {
-				// last data block received, end of file
-				log.Printf("Last data block received, end of file\n")
-				c.sendAck(dataPack.BlockNumber)
-				return true
-			}
-			c.sendAck(c.nextSeqNum) // send ACK for this packet
-			c.nextSeqNum++          // increment for next packet
-		} else { // checksum failed
-			log.Printf("Calc Checksum: %v\n", tftp.Checksum(dataPack.Data))
-			log.Printf("Received Checksum: %v\n", dataPack.Checksm)
-			//log.Printf("Checksum failed, sending ACK for previous packet\n")
-			c.sendAck(c.nextSeqNum - 1)
-		}
-	} else { // duplicate packet or out of order packet
-		// send ACK for previous packet
-		c.sendAck(c.nextSeqNum - 1)
+	if err != nil || dataPack.BlockNumber != c.nextSeqNum {
+		// Duplicate packet or out of order packet
+		c.sendAck(c.nextSeqNum - 1) // Send ACK for previous packet
+		return false
 	}
-	return false // not last data block
+	if dataPack.Checksm != tftp.Checksum(dataPack.Data) {
+		// Checksum failed
+		log.Printf("Calc Checksum: %v\n", tftp.Checksum(dataPack.Data))
+		log.Printf("Received Checksum: %v\n", dataPack.Checksm)
+		c.sendAck(c.nextSeqNum - 1) // Send ACK for previous packet
+		return false
+	}
+	log.Printf("\n-----------------\nReceived data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataPack.BlockNumber, dataPack.Data[0:10], len(dataPack.Data))
+	// Append data to file
+	if !c.appendFileDate(&dataPack) { // Append data to file, if duplicate packet, return false
+		return false
+	}
+	// Send ACK for this packet on routine
+	if len(dataPack.Data) < 512 {
+		// Last data block received, end of file
+		log.Printf("Last data block received, end of file\n")
+		c.sendAck(dataPack.BlockNumber)
+		return true
+	}
+	c.sendAck(c.nextSeqNum) // Send ACK for this packet
+	c.nextSeqNum++          // Increment for next packet
+	return false            // Not last data block
 }
