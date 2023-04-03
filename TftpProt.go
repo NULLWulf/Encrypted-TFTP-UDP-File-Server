@@ -196,7 +196,7 @@ func PrepareData(data []byte, blockSize int, xorKey []byte) (dataQueue []*tftp.D
 		}
 		// Create the TFTPData packet
 		// data que append
-		dataQueue[i], err = tftp.NewData(uint16(i)+1, data[start:end])
+		dataQueue[i], err = tftp.NewData(uint16(i)+1, data[start:end], xorKey)
 		log.Printf("Data packet %d: %v", i, dataQueue[i].BlockNumber)
 		log.Printf("\n-----------------\nBuild data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataQueue[i].BlockNumber, dataQueue[i].Data[0:10], len(dataQueue[i].Data))
 

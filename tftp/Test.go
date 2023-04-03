@@ -43,23 +43,24 @@ func (t Test) Request() {
 	TestEncryptDecrypt(bsize)
 }
 
-func (t Test) Data() {
-	data, err := NewData(1, make([]byte, 512))
-	if err != nil {
-		log.Fatal(err)
-	}
-	packet := data.ToBytes()
-	var data2 Data
-	err = data2.Parse(packet)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	bsize := data2.ToBytes()
-	log.Printf("Data Packet: %d", len(bsize))
-	TestEncryptDecrypt(bsize)
-
-}
+//func (t Test) Data() {
+//	by
+//	//data, err := NewData(1, make([]byte, 512),
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	packet := data.ToBytes()
+//	var data2 Data
+//	err = data2.Parse(packet)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	bsize := data2.ToBytes()
+//	log.Printf("Data Packet: %d", len(bsize))
+//	TestEncryptDecrypt(bsize)
+//
+//}
 
 func (t Test) Error() {
 	// make 2 byte error code

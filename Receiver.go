@@ -59,7 +59,7 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 
 func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) bool {
 	var dataPack tftp.Data
-	err := dataPack.Parse(dataPacket)
+	err := dataPack.Parse(dataPacket, c.key)
 	if err != nil || dataPack.BlockNumber != c.nextSeqNum {
 		// Duplicate packet or out of order packet
 		c.sendAck(c.nextSeqNum - 1) // Send ACK for previous packet
