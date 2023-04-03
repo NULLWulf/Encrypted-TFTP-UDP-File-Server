@@ -29,7 +29,7 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		c.sendError(5, "File not found")
 		return
 	}
-	c.SetProtocolOptions(nil, 0)                                                 //Set the protocol options
+	c.SetProtocolOptions(req.Options, 0)                                         //Set the protocol options
 	opAck := tftp.NewOpt1(c.blockSize, c.xferSize, c.blockSize, []byte("octet")) //Create the OACK packet
 	c.dataBlocks, err = PrepareData(img, int(c.blockSize), c.key)                //Prepare the data blocks
 	if err != nil {

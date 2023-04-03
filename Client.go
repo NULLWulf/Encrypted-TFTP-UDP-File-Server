@@ -40,14 +40,15 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTime float64) {
 	// make a map with a key field
 	options := make(map[string][]byte)
-	// add a 10 digit key to map
-	options["key"] = []byte("1234567890")
+	options["key"], _ = GenKey128()
+	// random 256 bit key
+	// set the key to the map
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, options)
 	packet, _ := reqPack.ToBytes()
-	c.SetProtocolOptions(nil, 0)   // sets the protocol options
-	c.StartTime()                  // starts the timer
-	n, err := c.conn.Write(packet) // sends the request packet
-	c.ADto(n)                      // adds the number of bytes sent to the total bytes sent running total
+	c.SetProtocolOptions(options, 0) // sets the protocol options
+	c.StartTime()                    // starts the timer
+	n, err := c.conn.Write(packet)   // sends the request packet
+	c.ADto(n)                        // adds the number of bytes sent to the total bytes sent running total
 	if err != nil {
 		log.Printf("Error sending request packet: %s\n", err)
 		return err, nil, 0

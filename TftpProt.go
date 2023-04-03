@@ -2,6 +2,7 @@ package main
 
 import (
 	"CSC445_Assignment2/tftp"
+	"crypto/rand"
 	"encoding/binary"
 	"log"
 	"net"
@@ -43,10 +44,11 @@ func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
 		c.windowSize = binary.BigEndian.Uint16(options["windowsize"])
 	}
 	if options["key"] != nil {
+		log.Printf("Key: %s\n", options["key"])
 		c.key = options["key"]
 	}
 
-	c.key = []byte("1234567890")
+	//c.key = []byte("1234567890")j
 	c.blockSize = 512
 	c.windowSize = uint16(WindowSize)
 }
@@ -127,16 +129,6 @@ func (c *TFTPProtocol) Close() error {
 	return c.conn.Close()
 }
 
-//func (c *TFTPProtocol) rebuildData() []byte {
-//	var data []byte
-//	for i := 1; i <= c.totalFrames; i++ {
-//		// get value from pointer
-//
-//		data = append(data, c.receivedPackets[uint16(i)].Data...)
-//	}
-//	return data
-//}
-
 func (c *TFTPProtocol) rebuildData() []byte {
 	var data []byte
 	keys := make([]int, 0, len(c.receivedPackets))
@@ -206,4 +198,15 @@ func PrepareData(data []byte, blockSize int, xorKey []byte) (dataQueue []*tftp.D
 	}
 	log.Printf("Finished preparing data, %d blocks", len(dataQueue))
 	return
+}
+
+func GenKey128() ([]byte, error) {
+	key := make([]byte, 16) // 16 bytes = 128 bits
+
+	_, err := rand.Read(key)
+	if err != nil {
+		return nil, err
+	}
+
+	return key, nil
 }

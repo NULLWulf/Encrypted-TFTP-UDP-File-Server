@@ -65,7 +65,7 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) bool {
 		c.sendAck(c.nextSeqNum - 1) // Send ACK for previous packet
 		return false
 	}
-	if dataPack.Checksm != tftp.Checksum(dataPack.Data) {
+	if dataPack.Checksm != tftp.Checksum(tftp.Xor(dataPack.Data, c.key)) {
 		// Checksum failed
 		log.Printf("Calc Checksum: %v\n", tftp.Checksum(dataPack.Data))
 		log.Printf("Received Checksum: %v\n", dataPack.Checksm)
