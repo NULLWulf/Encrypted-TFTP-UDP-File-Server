@@ -57,46 +57,6 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 
 }
 
-// receiveDataPacket receives a data packet and handles it
-// if the data packet is the next expected packet, it is added to the dataBlocks
-// and an ACK is sent for it
-// if the data packet is a duplicate of a previously received packet, an ACK is
-// sent for the previous packet
-// if the data packet is not the next expected packet, an ACK is sent for the
-// previous packet
-//func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) (endOfFile bool) {
-//	var dataPack tftp.Data
-//	err := dataPack.Parse(dataPacket)
-//	if err == nil && dataPack.BlockNumber == c.nextSeqNum {
-//		if dataPack.Checksm == tftp.Checksum(dataPack.Data) {
-//			log.Printf("\n-----------------\nReceived data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataPack.BlockNumber, dataPack.Data[0:10], len(dataPack.Data))
-//			//c.dataBlocks = append(c.dataBlocks, &dataPack)
-//			if !c.appendFileDate(&dataPack) {
-//				return false
-//			}
-//			c.appendFileDate(&dataPack)
-//			// send ACK for this packet on  routinel
-//			if len(dataPack.Data) < 512 {
-//				// last data block received, end of file
-//				log.Printf("Last data block received, end of file\n")
-//				c.sendAck(dataPack.BlockNumber)
-//				return true
-//			}
-//			c.sendAck(c.nextSeqNum) // send ACK for this packet
-//			c.nextSeqNum++          // increment for next packet
-//		} else { // checksum failed
-//			log.Printf("Calc Checksum: %v\n", tftp.Checksum(dataPack.Data))
-//			log.Printf("Received Checksum: %v\n", dataPack.Checksm)
-//			//log.Printf("Checksum failed, sending ACK for previous packet\n")
-//			c.sendAck(c.nextSeqNum - 1)
-//		}
-//	} else { // duplicate packet or out of order packet
-//		// send ACK for previous packet
-//		c.sendAck(c.nextSeqNum - 1)
-//	}
-//	return false // not last data block
-//}
-
 func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) bool {
 	var dataPack tftp.Data
 	err := dataPack.Parse(dataPacket)

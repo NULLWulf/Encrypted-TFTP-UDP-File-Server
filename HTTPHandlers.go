@@ -52,10 +52,11 @@ func getImage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		log.Printf("Error Requesting File over TFTP: %s\n", err)
 		return
 	}
-	// save the image
-	err = os.WriteFile("image.jpg", img, 7777) // save the image
 
-	w.Header().Set("Content-Type", "image/jpeg") // set the content type
+	// save the image
+	err = os.WriteFile("image.png", img, 0777) // save the image
+
+	w.Header().Set("Content-Type", "image/png") // set the content type
 	n, err := w.Write(img)
 	log.Printf("Serving image of size: %d\n", n)
 	return

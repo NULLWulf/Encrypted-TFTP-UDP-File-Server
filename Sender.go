@@ -31,7 +31,7 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	}
 	c.SetProtocolOptions(nil, 0)                                                 //Set the protocol options
 	opAck := tftp.NewOpt1(c.blockSize, c.xferSize, c.blockSize, []byte("octet")) //Create the OACK packet
-	c.dataBlocks, err = PrepareData(img, int(c.blockSize))                       //Prepare the data blocks
+	c.dataBlocks, err = PrepareData(img, int(c.blockSize), c.key)                //Prepare the data blocks
 	if err != nil {
 		c.sendError(5, "Error preparing data blocks")
 		return
@@ -56,6 +56,7 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 // within the timeout period, the data block is resent.  If an error
 // occurs, the error is logged and the loop is exited.
 func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
+
 	var ack tftp.Ack
 	log.Println("Starting sender transfer TFTP loop")
 	packet := make([]byte, 520)                                     //Byte slice "buffer"

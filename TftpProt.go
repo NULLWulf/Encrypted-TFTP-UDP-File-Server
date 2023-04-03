@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"log"
 	"net"
+	"sort"
 	"time"
 )
 
@@ -126,10 +127,29 @@ func (c *TFTPProtocol) Close() error {
 	return c.conn.Close()
 }
 
+//func (c *TFTPProtocol) rebuildData() []byte {
+//	var data []byte
+//	for i := 1; i <= c.totalFrames; i++ {
+//		// get value from pointer
+//
+//		data = append(data, c.receivedPackets[uint16(i)].Data...)
+//	}
+//	return data
+//}
+
 func (c *TFTPProtocol) rebuildData() []byte {
 	var data []byte
-	for i := 1; i <= c.totalFrames; i++ {
-		data = append(data, c.receivedPackets[uint16(i)].Data...)
+	keys := make([]int, 0, len(c.receivedPackets))
+
+	// Get and sort the keys
+	for k := range c.receivedPackets {
+		keys = append(keys, int(k))
+	}
+	sort.Ints(keys)
+
+	// Rebuild the data using the sorted keys
+	for _, key := range keys {
+		data = append(data, c.receivedPackets[uint16(key)].Data...)
 	}
 	return data
 }
@@ -156,7 +176,7 @@ func (c *TFTPProtocol) DisplayStats() {
 	log.Println("Raw throughput: ", through, "Mbps")
 }
 
-func PrepareData(data []byte, blockSize int) (dataQueue []*tftp.Data, err error) {
+func PrepareData(data []byte, blockSize int, xorKey []byte) (dataQueue []*tftp.Data, err error) {
 	// Create a slice of TFTPData packets
 	blocks := len(data) / blockSize
 	if len(data)%blockSize != 0 {
@@ -170,19 +190,20 @@ func PrepareData(data []byte, blockSize int) (dataQueue []*tftp.Data, err error)
 		// Calculate the start and end indices of the data
 		start := i * blockSize
 		end := start + blockSize
+		log.Printf("[%d:%d]", start, end)
 		if end > len(data) {
 			end = len(data)
 		}
 		// Create the TFTPData packet
 		// data que append
 		dataQueue[i], err = tftp.NewData(uint16(i)+1, data[start:end])
-		// on a something percent chance duplicate the packet and add it to the queue
-		// and decrement the drops counter and increase the probability of dropping
-		// Randomly duplicate a data block before adding it to the queue
+		log.Printf("Data packet %d: %v", i, dataQueue[i].BlockNumber)
+		log.Printf("\n-----------------\nBuild data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataQueue[i].BlockNumber, dataQueue[i].Data[0:10], len(dataQueue[i].Data))
 
 		if err != nil {
 			return
 		}
 	}
+	log.Printf("Finished preparing data, %d blocks", len(dataQueue))
 	return
 }
