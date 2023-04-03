@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Clien to Proxy Server Image Fetch</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 <div>
@@ -16,7 +17,11 @@
 <div style="width: 500px;">
     <img id="image-container" src="" alt="Image">
 </div>
-
+<div class="section">
+    <h2>Throughput Results in Mbps</h2>
+    <h3>Network 1</h3>
+    <canvas id="Network1"></canvas>
+  </div>
 </div>
 <script>
     function fetchImage() {
@@ -29,6 +34,70 @@
             })
             .catch(error => console.error(error));
     }
+
+
+    var wiredRttCtx = document.getElementById("Network1").getContext("2d");
+    var Network1 = [50, 50, 50, 50];
+    var Network2 = [50, 50, 50, 50];
+    var Network1Name = "Network 1";
+    var Network2Name = "Network 2";
+    
+
+      var wiredRttChart = new Chart(wiredRttCtx, {
+        type: "bar",
+        data: {
+          labels: ["Window 8, No Drops", "Window 8, Drops", "Window 16, No Drops", "Window 16, Drops"],
+          datasets: [
+            {
+              label: Network1Name,
+              data: Network1,
+              backgroundColor: "rgba(255, 99, 132, 0.5)",
+              borderColor: "rgba(255, 99, 132, 1)",
+              borderWidth: 1,
+            },
+            {
+              label: Network2Name,
+              data: Network2,
+              backgroundColor: "rgba(54, 162, 235, 0.5)",
+              borderColor: "rgba(54, 162, 235, 1)",
+              borderWidth: 1,
+            },
+          ],
+        },
+        options: {
+          responsive: false,
+          legend: {
+            position: "top",
+          },
+          title: {
+            display: true,
+            text: "Throughput (in Mbps)",
+          },
+          scales: {
+            yAxes: [
+              {
+                scaleLabel: {
+                  display: true,
+                  labelString: "Throughput (in Mbps)",
+                  color: "rgba(255, 99, 132, 1)",
+                },
+                ticks: {
+                  beginAtZero: true,
+                },
+              },
+            ],
+            xAxes: [
+              {
+                scaleLabel: {
+                  display: true,
+                  labelString: "Variations",
+                  color: "rgba(255, 99, 132, 1)",
+                },
+              },
+            ],
+          },
+        },
+      });
 </script>
 </body>
 </html>
