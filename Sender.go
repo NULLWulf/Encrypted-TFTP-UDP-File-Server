@@ -96,9 +96,8 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 		if nErr, ok := err.(net.Error); ok && nErr.Timeout() { //Check if the error is a timeout error
 			log.Printf("Timeout, resending unacknowledged packets\n") //If it is a timeout error, log it and increment the timeout counter
 			tOuts++                                                   //Increment the timeout counter
-			// Calculate the delay for the next retry using exponential backoff
-			delay = iDelay * (1 << tOuts) // 2^tOuts
-			if delay > mDelay {           // If the delay is greater than the max delay, set the delay to the max delay
+			delay = iDelay * (1 << tOuts)                             // 2^tOuts
+			if delay > mDelay {                                       // If the delay is greater than the max delay, set the delay to the max delay
 				delay = mDelay
 			}
 			c.conn.SetReadDeadline(time.Now().Add(delay)) //Set the read deadline to the current time plus the delay
@@ -106,10 +105,10 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 				log.Println("Closing connection due to 5 consecutive unacknowledged packets")
 				return fmt.Errorf("connection closed after 5 consecutive unacknowledged packets")
 			}
-			continue // Continue to the next iteration of the loop
+			continue // Continue to the next iteration of the loop while not incrementing the next sequence number
 		}
 
-		tOuts = 0 // Reset consecutiveTimeouts counter when an ACK is received
+		tOuts = 0 // Reset consecutive timeouts counter when an ACK is received
 
 		packet = packet[:n]                           //Trim the packet to the size of the data received
 		opcode := binary.BigEndian.Uint16(packet[:2]) //Get the opcode from the packet
