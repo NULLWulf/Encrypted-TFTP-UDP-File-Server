@@ -17,7 +17,7 @@ func RunClientMode() {
 	router.GET("/", homepage)  // Services index.html
 	router.GET("/getImage", getImage)
 
-	log.Printf("Listening on port 8080\n")
+	log.Printf("Listening on port 40500\n")
 	err := http.ListenAndServe(":8080", router) // ports for serving web page
 	if err != nil {
 		log.Fatal("Failed to Listen and Serve: ", err)
@@ -38,6 +38,7 @@ func getImage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	imageUrl := r.URL.Query().Get("url")
+	log.Printf("Serving image: %s\n", imageUrl)
 	log.Printf("Serving image: %s\n", imageUrl)
 
 	client, err := NewTFTPClient() // instantiate a new TFTP client

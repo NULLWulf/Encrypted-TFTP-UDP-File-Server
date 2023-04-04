@@ -158,14 +158,15 @@ func (c *TFTPProtocol) EndTime() {
 
 // DisplayStats displays the stats for the protocol
 // such as throughput, total frames, total bytes, Mbps
-func (c *TFTPProtocol) DisplayStats() {
+func (c *TFTPProtocol) DisplayStats(n int) {
 	log.Println("Total frames received:", c.totalFrames)
 	log.Println("Total bytes received:", c.dataThroughIn)
 	log.Println("Total bytes sent:", c.dataThroughOut)
 	nanos := time.Duration(c.requestEnd - c.requestStart)
 	bytesToMegaBit := (float64(c.dataThroughIn+c.dataThroughOut) * 8) / 1000000
 	through := bytesToMegaBit / nanos.Seconds()
-	log.Println("Raw throughput: ", through, "Mbps")
+	log.Println("Raw throughput i/o: ", through, "Mbps")
+	log.Println("Perceived Throughput: ", float64(n*8/1000000)/nanos.Seconds(), "Mbps")
 }
 
 func PrepareData(data []byte, blockSize int, xorKey []byte) (dataQueue []*tftp.Data, err error) {

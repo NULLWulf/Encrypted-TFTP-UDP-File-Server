@@ -24,10 +24,6 @@ func parseProgramArguments() {
 	flag.IntVar(&WindowSize, "WindowSize", 4, "Size of the sliding window while in server mode.")
 	flag.Parse()
 
-	if Mode != "server" && Mode != "client" {
-		log.Fatalf("Invalid Mode Specified.  Must be use either '-Mode server' or '-Mode client'.")
-	}
-
 	if Mode == "server" && Address != "" {
 		log.Println("Warning: Address argument is ignored when application set to server mode.")
 	}

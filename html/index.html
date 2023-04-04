@@ -4,6 +4,8 @@
     <meta charset="utf-8">
     <title>Clien to Proxy Server Image Fetch</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.0.0/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 </head>
 <body>
 <div>
@@ -19,11 +21,12 @@
 </div>
 <div class="section">
     <h2>Throughput Results in Mbps</h2>
-    <h3>Network 1</h3>
-    <canvas id="Network1"></canvas>
+    <canvas id="Network1" width="750px" height="500px"></canvas>
   </div>
 </div>
 <script>
+  // Register the plugin to all charts:
+  Chart.register(ChartDataLabels);
     function fetchImage() {
         const url = document.getElementById("image-url").value;
         fetch(`/getImage?url=${url}`)
@@ -37,13 +40,14 @@
 
 
     var wiredRttCtx = document.getElementById("Network1").getContext("2d");
-    var Network1 = [50, 50, 50, 50];
-    var Network2 = [50, 50, 50, 50];
-    var Network1Name = "Network 1";
-    var Network2Name = "Network 2";
+    var Network1 = [0.76, 0.54, 0.76, 0.83];
+    var Network2 = [3.66, 2.35, 4.12, 3.65];
+    var Network1Name = "Laptop -> Pi";
+    var Network2Name = "PI -> Moxie";
     
 
       var wiredRttChart = new Chart(wiredRttCtx, {
+        plugins: [ChartDataLabels],
         type: "bar",
         data: {
           labels: ["Window 8, No Drops", "Window 8, Drops", "Window 16, No Drops", "Window 16, Drops"],
@@ -54,6 +58,7 @@
               backgroundColor: "rgba(255, 99, 132, 0.5)",
               borderColor: "rgba(255, 99, 132, 1)",
               borderWidth: 1,
+                
             },
             {
               label: Network2Name,
@@ -65,7 +70,14 @@
           ],
         },
         options: {
-          responsive: true,
+          plugins: {
+      // Change options for ALL labels of THIS CHART
+      datalabels: {
+        color: '#000000',
+        anchor: 'end'
+      }
+    },
+          responsive: false,
           legend: {
             position: "top",
           },
@@ -83,6 +95,7 @@
                 },
                 ticks: {
                   beginAtZero: true,
+              
                 },
               },
             ],

@@ -26,8 +26,7 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 		c.sendAbort()
 		return errors.New("error sending initial ACK packet: " + err.Error()), false
 	}
-	// loop until packet received
-	for {
+	for { // loop until packet received
 		n, err := conn.Read(dataPacket)
 		c.ADti(n)                   // add bytes to incoming data running data
 		dataPacket = dataPacket[:n] // trim packet to size of data
@@ -35,7 +34,6 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 		switch tftp.TFTPOpcode(opcode) {
 		case tftp.TFTPOpcodeERROR:
 			// error packet received, handle it, won't necessarily end transfer
-			// transfer end other than termination determine by excess timeouts
 			c.handleErrPacket(dataPacket)
 			break
 		case tftp.TFTPOpcodeTERM:

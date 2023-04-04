@@ -55,12 +55,13 @@ func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTim
 	}
 	err = c.preDataTransfer() // starts the transfer process
 	c.EndTime()               // ends the timer
-	c.DisplayStats()          // displays the stats regarding the transfer
 	if err != nil {
 		log.Printf("Error in preDataTransfer: %s\n", err)
 		return err, nil, 0
 	}
-	data = c.rebuildData() // rebuilds the data from the data packets received
+	data = c.rebuildData()    // rebuilds the data from the data packets received
+	c.DisplayStats(len(data)) // displays the stats regarding the transfer
+
 	return nil, data, 0
 }
 

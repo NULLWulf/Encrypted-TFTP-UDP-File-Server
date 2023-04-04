@@ -13,12 +13,23 @@ func main() {
 	// Parse the command line arguments
 	parseProgramArguments()
 	// Run the application in the specified mode
-	if Mode == "server" {
+
+	switch Mode {
+	case "server":
 		IQ = NewImageQueueObj()
 		log.Printf("Running in server mode on port %d with window size %d\n", Port, WindowSize)
 		RunServerMode()
-	} else {
-		log.Printf("Running in client mode\n")
+
+	case "client":
 		RunClientMode()
+
+	default:
+		client, err := NewTFTPClient() // instantiate a new TFTP client
+		if err != nil {
+			log.Printf("Error Creating TFTP Client: %s\n", err)
+			return
+		}
+		defer client.Close()
+		_, _, _ = client.RequestFile("https://rare-gallery.com/uploads/posts/577429-star-wars-high.jpg") // request the file via url
 	}
 }
