@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
 )
 
 // OptionAcknowledgement represents a TFTP option acknowledgement packet.
@@ -74,38 +73,38 @@ func (oack *OptionAcknowledgement) ToBytes() []byte {
 
 // Parse parses the given packet into the option acknowledgement.
 func (oa *OptionAcknowledgement) Parse(packet []byte) error {
-	log.Printf("Received oa Packet")
-	if len(packet) < 2 {
-		return fmt.Errorf("packet too short")
-	}
-	nullIndex := 0
-
-	//// Extract the opcode from the first two bytes of the packet.
-	oa.Opcode = TFTPOpcode(binary.BigEndian.Uint16(packet[:2]))
-
-	// Parse the options from the remaining bytes of the packet.
-	oa.Options = make(map[string][]byte)
-	optionBytes := packet[2:]
-	for len(optionBytes) > 0 {
-		// Find the next null byte to split the option name and value.
-		nullIndex := bytes.IndexByte(optionBytes, 0)
-		if nullIndex < 0 {
-			return fmt.Errorf("invalid option: %v", optionBytes)
-		}
-	}
-
-	// Move past the null byte to the start of the value.
-	optionBytes = optionBytes[nullIndex+1:]
-
-	if len(optionBytes) == 0 {
-		return fmt.Errorf("invalid option: %v", packet)
-	}
-
-	// Find the length of the option value.
-	valueLen := bytes.IndexByte(optionBytes, 0)
-	if valueLen < 0 {
-		valueLen = len(optionBytes)
-	}
+	//log.Printf("Received oa Packet")
+	//if len(packet) < 2 {
+	//	return fmt.Errorf("packet too short")
+	//}
+	//nullIndex := 0
+	//
+	////// Extract the opcode from the first two bytes of the packet.
+	//oa.Opcode = TFTPOpcode(binary.BigEndian.Uint16(packet[:2]))
+	//
+	//// Parse the options from the remaining bytes of the packet.
+	//oa.Options = make(map[string][]byte)
+	//optionBytes := packet[2:]
+	//for len(optionBytes) > 0 {
+	//	// Find the next null byte to split the option name and value.
+	//	nullIndex := bytes.IndexByte(optionBytes, 0)
+	//	if nullIndex < 0 {
+	//		return fmt.Errorf("invalid option: %v", optionBytes)
+	//	}
+	//}
+	//
+	//// Move past the null byte to the start of the value.
+	//optionBytes = optionBytes[nullIndex+1:]
+	//
+	//if len(optionBytes) == 0 {
+	//	return fmt.Errorf("invalid option: %v", packet)
+	//}
+	//
+	//// Find the length of the option value.
+	//valueLen := bytes.IndexByte(optionBytes, 0)
+	//if valueLen < 0 {
+	//	valueLen = len(optionBytes)
+	//}
 
 	return nil
 }
