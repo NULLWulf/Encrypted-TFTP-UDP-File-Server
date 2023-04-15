@@ -5,8 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/elliptic"
 	"crypto/rand"
-	"fmt"
-	"io"
+	"crypto/sha256"
 	"math/big"
 )
 
@@ -17,56 +16,52 @@ type DHKESession struct {
 	sharedKey  []byte
 }
 
-// Encrypt takes a plaintext and key as byte slices, and returns the encrypted
-// data as a byte slice (IV + ciphertext). It uses AES in CFB mode for encryption.
-func (d *DHKESession) Encrypt(plaintext []byte, key []byte) ([]byte, error) {
-	// Create a new AES cipher with the provided key
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
+func (d *DHKESession) EncryptAes(data []byte, key []byte) []byte {
+	iv := make([]byte, aes.BlockSize)
+	if _, err := rand.Read(iv); err != nil {
+		panic(err)
 	}
 
-	// Create a byte slice to store the IV and ciphertext
-	ciphertext := make([]byte, aes.BlockSize+len(plaintext))
+	block, _ := aes.NewCipher(key)
 
-	// Generate a random IV and store it in the beginning of the ciphertext slice
-	iv := ciphertext[:aes.BlockSize]
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return nil, err
-	}
+	// Encrypt the plaintext using CBC mode
+	mode := cipher.NewCBCEncrypter(block, iv)
+	ciphertext := make([]byte, len(data))
+	mode.CryptBlocks(ciphertext, data)
 
-	// Create a CFB stream encrypter using the AES cipher, and encrypt the plaintext
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(ciphertext[aes.BlockSize:], plaintext)
+	// Prepend the IV to the ciphertext
+	encryptedPacket := append(iv, ciphertext...)
 
-	return ciphertext, nil
+	return encryptedPacket
 }
 
-// Decrypt takes a ciphertext and key as byte slices, and returns the decrypted
-// data as a byte slice. It uses AES in CFB mode for decryption.
-func (d *DHKESession) Decrypt(ciphertext []byte, key []byte) ([]byte, error) {
-	// Create a new AES cipher with the provided key
+// decrypt decrypts an encrypted packet using AES-CBC mode
+func Decrypt(encryptedPacket []byte, key []byte) ([]byte, error) {
+	// Create a new AES cipher block
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if the ciphertext is too short (should include IV + encrypted data)
-	if len(ciphertext) < aes.BlockSize {
-		return nil, fmt.Errorf("ciphertext too short")
-	}
+	// Extract the IV and ciphertext from the encrypted packet
+	iv := encryptedPacket[:aes.BlockSize]
+	ciphertext := encryptedPacket[aes.BlockSize:]
 
-	// Extract the IV from the beginning of the ciphertext slice
-	iv := ciphertext[:aes.BlockSize]
+	// Decrypt the ciphertext using CBC mode
+	mode := cipher.NewCBCDecrypter(block, iv)
+	plaintext := make([]byte, len(ciphertext))
+	mode.CryptBlocks(plaintext, ciphertext)
 
-	// Remove the IV from the ciphertext
-	ciphertext = ciphertext[aes.BlockSize:]
+	// Unpad the plaintext to remove PKCS#7 padding
+	plaintext = unpad(plaintext)
 
-	// Create a CFB stream decrypter using the AES cipher, and decrypt the ciphertext
-	stream := cipher.NewCFBDecrypter(block, iv)
-	stream.XORKeyStream(ciphertext, ciphertext)
+	return plaintext, nil
+}
 
-	return ciphertext, nil
+// unpad removes PKCS#7 padding from the input data
+func unpad(data []byte) []byte {
+	padding := int(data[len(data)-1])
+	return data[:len(data)-padding]
 }
 
 // GenerateKeyPair a public-private key pair for the DHKE using the elliptic curve P-256.
@@ -80,4 +75,10 @@ func (d *DHKESession) generateSharedKey(pubKeyX, pubKeyY *big.Int) []byte {
 	curve := elliptic.P256()
 	x, _ := curve.ScalarMult(pubKeyX, pubKeyY, d.privateKey)
 	return x.Bytes()
+}
+
+// Derive the AES key from the shared secret using SHA-256
+func deriveAESKey(sharedSecret []byte) []byte {
+	hash := sha256.Sum256(sharedSecret)
+	return hash[:]
 }

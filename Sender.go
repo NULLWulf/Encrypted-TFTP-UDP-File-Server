@@ -48,7 +48,7 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		KeyY:   c.dhke.pubKeyY.Bytes(),
 	}
 
-	c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.key) //Prepare the data blocks
+	c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.dhke.sharedKey) //Prepare the data blocks
 	if err != nil {
 		c.sendError(5, "Error preparing data blocks")
 		return

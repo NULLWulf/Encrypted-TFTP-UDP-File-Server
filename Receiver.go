@@ -57,13 +57,13 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 
 func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) bool {
 	var dataPack tftp.Data
-	err := dataPack.Parse(dataPacket, c.key)
+	err := dataPack.Parse(dataPacket, c.dhke.sharedKey)
 	if err != nil || dataPack.BlockNumber != c.nextSeqNum {
 		// Duplicate packet or out of order packet
 		c.sendAck(c.nextSeqNum - 1) // Send ACK for previous packet
 		return false
 	}
-	if dataPack.Checksm != tftp.Checksum(tftp.Xor(dataPack.Data, c.key)) {
+	if dataPack.Checksm != tftp.Checksum(tftp.Xor(dataPack.Data, c.dhke.sharedKey)) {
 		// Checksum failed
 		//log.Printf("Calc Checksum: %v\n", tftp.Checksum(dataPack.Data))
 		//log.Printf("Received Checksum: %v\n", dataPack.Checksm)
