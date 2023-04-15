@@ -65,12 +65,12 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) bool {
 	}
 	if dataPack.Checksm != tftp.Checksum(tftp.Xor(dataPack.Data, c.key)) {
 		// Checksum failed
-		log.Printf("Calc Checksum: %v\n", tftp.Checksum(dataPack.Data))
-		log.Printf("Received Checksum: %v\n", dataPack.Checksm)
+		//log.Printf("Calc Checksum: %v\n", tftp.Checksum(dataPack.Data))
+		//log.Printf("Received Checksum: %v\n", dataPack.Checksm)
 		c.sendAck(c.nextSeqNum - 1) // Send ACK for previous packet
 		return false
 	}
-	log.Printf("\n-----------------\nReceived data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataPack.BlockNumber, dataPack.Data[0:10], len(dataPack.Data))
+	//log.Printf("\n-----------------\nReceived data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataPack.BlockNumber, dataPack.Data[0:10], len(dataPack.Data))
 	// Append data to file
 	if !c.appendFileDate(&dataPack) { // Append data to file, if duplicate packet, return false
 		return false

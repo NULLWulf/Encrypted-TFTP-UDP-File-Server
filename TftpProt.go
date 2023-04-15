@@ -72,7 +72,7 @@ func (c *TFTPProtocol) sendAck(nextSeqNum uint16) {
 	ack := tftp.NewAck(nextSeqNum)
 	n, err := c.conn.Write(ack.ToBytes())
 	c.ADto(n)
-	log.Printf("Sending ACK packet: %d\n", ack.BlockNumber)
+	//log.Printf("Sending ACK packet: %d\n", ack.BlockNumber)
 	if err != nil {
 		log.Println("Error sending ACK packet:", err)
 		return
@@ -108,7 +108,7 @@ func (c *TFTPProtocol) appendFileDate(data *tftp.Data) bool {
 		log.Println("Duplicate packet, discarding")
 		return false
 	} else {
-		log.Println("New packet, storing")
+		//log.Println("New packet, storing")
 	}
 	c.receivedPackets[data.BlockNumber] = data
 	c.totalFrames++
@@ -183,15 +183,15 @@ func PrepareData(data []byte, blockSize int, xorKey []byte) (dataQueue []*tftp.D
 		// Calculate the start and end indices of the data
 		start := i * blockSize
 		end := start + blockSize
-		log.Printf("[%d:%d]", start, end)
+		//log.Printf("[%d:%d]", start, end)
 		if end > len(data) {
 			end = len(data)
 		}
 		// Create the TFTPData packet
 		// data que append
 		dataQueue[i], err = tftp.NewData(uint16(i)+1, data[start:end], xorKey)
-		log.Printf("Data packet %d: %v", i, dataQueue[i].BlockNumber)
-		log.Printf("\n-----------------\nBuild data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataQueue[i].BlockNumber, dataQueue[i].Data[0:10], len(dataQueue[i].Data))
+		//log.Printf("Data packet %d: %v", i, dataQueue[i].BlockNumber)
+		//log.Printf("\n-----------------\nBuild data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataQueue[i].BlockNumber, dataQueue[i].Data[0:10], len(dataQueue[i].Data))
 
 		if err != nil {
 			return

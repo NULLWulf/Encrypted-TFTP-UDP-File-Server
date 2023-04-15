@@ -24,14 +24,16 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		return
 	}
 	log.Printf("Received %d bytes from %s for file %s \n", len(buf), addr, string(req.Filename))
-	err, img := IQ.AddNewAndReturnImg(string(req.Filename)) //Add the image to the image queue
+	//err, img := IQ.AddNewAndReturnImg(string(req.Filename)) //Add the image to the image queue
+	file, err := ProxyRequest(string(req.Filename))
+
 	if err != nil {
 		c.sendError(5, "File not found")
 		return
 	}
 	c.SetProtocolOptions(req.Options, 0)                                         //Set the protocol options
 	opAck := tftp.NewOpt1(c.blockSize, c.xferSize, c.blockSize, []byte("octet")) //Create the OACK packet
-	c.dataBlocks, err = PrepareData(img, int(c.blockSize), c.key)                //Prepare the data blocks
+	c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.key)               //Prepare the data blocks
 	if err != nil {
 		c.sendError(5, "Error preparing data blocks")
 		return
@@ -88,7 +90,7 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 		packet = c.dataBlocks[nextSeqNum-1].ToBytes() //Get the data block and convert it to a byte slice
 		n, err = c.conn.WriteToUDP(packet, addr)      //Send the data block
 		c.ADto(n)                                     // Add to the total bytes sent to running outgoing total
-		log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
+		//log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
 		nextSeqNum++ //Increment the next sequence number
 
 		n, _ = c.conn.Read(packet)                             //Read the ACK
@@ -118,7 +120,7 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 			if err != nil {
 				log.Printf("Error parsing ACK packet: %s\n", err)
 			}
-			log.Printf("Received ACK for packet %d\n", ack.BlockNumber)
+			//log.Printf("Received ACK for packet %d\n", ack.BlockNumber)
 			if ack.BlockNumber >= uint16(base) { //If the block number is greater than or equal to the base number
 				base = int(ack.BlockNumber + 1) //Set the base to the block number plus 1
 			}

@@ -72,3 +72,26 @@ func (iq *ImageQueueObj) requestImage(url string) (img []byte, err error) {
 	}
 	return
 }
+
+func ProxyRequest(url string) (file []byte, err error) {
+	// Make a GET request to the image URL
+	var resp *http.Response
+	resp, err = http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer func(Body io.ReadCloser) error {
+		erro := Body.Close()
+		if erro != nil {
+			return erro
+		}
+		return erro
+	}(resp.Body)
+
+	// Read the image data into a byte slice
+	file, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	return
+}
