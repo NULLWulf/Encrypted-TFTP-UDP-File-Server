@@ -4,10 +4,7 @@ import (
 	"log"
 )
 
-var IQ *ImageQueueObj
-
 func main() {
-
 	//TestRetrievingFile()
 	//os.Exit(0)
 	// Parse the command line arguments
@@ -16,7 +13,6 @@ func main() {
 
 	switch Mode {
 	case "server":
-		IQ = NewImageQueueObj()
 		log.Printf("Running in server mode on port %d with window size %d\n", Port, WindowSize)
 		RunServerMode()
 

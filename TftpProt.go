@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"log"
+	"math/big"
 	"net"
 	"sort"
 	"time"
@@ -47,8 +48,20 @@ func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
 		log.Printf("Key: %s\n", options["key"])
 		c.key = options["key"]
 	}
+	if options["keyy"] != nil {
+		v := new(big.Int)
+		v.SetBytes(options["keyy"])
+		log.Println("Key Y:", v)
+		c.key = options["keyy"]
+	}
+	if options["keyx"] != nil {
+		// convert to big int
+		v := new(big.Int)
+		v.SetBytes(options["keyx"])
+		log.Println("Key X:", v)
+		c.key = options["keyx"]
+	}
 
-	//c.key = []byte("1234567890")j
 	c.blockSize = 512
 	c.windowSize = uint16(WindowSize)
 }
