@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"math/rand"
 	"net"
 	"time"
@@ -31,14 +32,28 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		c.sendError(5, "File not found")
 		return
 	}
-	c.SetProtocolOptions(req.Options, 0)                                         //Set the protocol options
-	opAck := tftp.NewOpt1(c.blockSize, c.xferSize, c.blockSize, []byte("octet")) //Create the OACK packet
-	c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.key)               //Prepare the data blocks
+	c.dhke = new(DHKESession) // Create a new DHKE session
+	c.dhke.GenerateKeyPair()  // Generate a new key pair for server
+	// get bytes conver to big int
+	px, py := new(big.Int), new(big.Int)                // Create new big ints to hold clients public keys
+	px.SetBytes(req.Options["keyx"])                    // Set the big ints to the clients public keys
+	py.SetBytes(req.Options["keyy"])                    // Set the big ints to the clients public keys
+	c.dhke.sharedKey = c.dhke.generateSharedKey(px, py) // Generate the shared key
+	c.SetProtocolOptions(req.Options, 0)                //Set the protocol options
+	log.Printf("Shared Secret: %s\n", c.dhke.sharedKey)
+	// Lazy interface to new option packets
+	opAck2 := tftp.OptionAcknowledgement{
+		Opcode: tftp.TFTPOpcodeOACK,
+		KeyX:   c.dhke.pubKeyX.Bytes(),
+		KeyY:   c.dhke.pubKeyY.Bytes(),
+	}
+
+	c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.key) //Prepare the data blocks
 	if err != nil {
 		c.sendError(5, "Error preparing data blocks")
 		return
 	}
-	n, err := c.conn.WriteToUDP(opAck.ToBytes(), addr) //Send the OACK
+	n, err := c.conn.WriteToUDP(opAck2.ToBytes(), addr) //Send the OACK
 	c.ADto(n)
 	if err != nil {
 		c.sendError(5, "Error sending OACK")

@@ -76,8 +76,8 @@ func (d *DHKESession) GenerateKeyPair() {
 }
 
 // GenerateSharedKey generates the shared key using the private key and the public key of the other party.
-func (d *DHKESession) generateSharedKey(pubKeyX, pubKeyY *big.Int) {
+func (d *DHKESession) generateSharedKey(pubKeyX, pubKeyY *big.Int) []byte {
 	curve := elliptic.P256()
 	x, _ := curve.ScalarMult(pubKeyX, pubKeyY, d.privateKey)
-	d.sharedKey = x.Bytes()
+	return x.Bytes()
 }

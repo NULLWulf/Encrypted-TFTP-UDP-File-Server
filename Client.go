@@ -17,6 +17,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math/big"
 	"net"
 )
 
@@ -40,10 +41,10 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTime float64) {
 	// make a map with a key field
 	options := make(map[string][]byte)
-	dhke := new(DHKESession)
-	dhke.GenerateKeyPair()
-	options["keyx"] = dhke.pubKeyX.Bytes() // set the x public key to the map
-	options["keyy"] = dhke.pubKeyY.Bytes() // set the y public key to the map
+	c.dhke = new(DHKESession)
+	c.dhke.GenerateKeyPair()
+	options["keyx"] = c.dhke.pubKeyX.Bytes() // set the x public key to the map
+	options["keyy"] = c.dhke.pubKeyY.Bytes() // set the y public key to the map
 	// random 256 bit key
 	// set the key to the map
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, options)
@@ -100,6 +101,12 @@ func (c *TFTPProtocol) preDataTransfer() error {
 			log.Printf("Received OACK packet: %s\n", packet)
 			var oackPack tftp.OptionAcknowledgement
 			err = oackPack.Parse(packet)
+			// get the shared secret
+			px, py := new(big.Int), new(big.Int)
+			px.SetBytes(oackPack.KeyX)
+			py.SetBytes(oackPack.KeyY)
+			c.dhke.sharedKey = c.dhke.generateSharedKey(px, py)
+			log.Printf("Shared Key: %s\n", c.dhke.sharedKey)
 			if err != nil {
 				return fmt.Errorf("error parsing OACK packet: %s", err)
 			}

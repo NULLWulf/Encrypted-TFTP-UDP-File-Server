@@ -27,6 +27,7 @@ type TFTPProtocol struct {
 	requestStart    int64                 // Time when the request was sent
 	requestEnd      int64                 // Time when the request was received
 	receivedPackets map[uint16]*tftp.Data // Received packets
+	dhke            *DHKESession          // Diffie Hellman Key Exchange
 }
 
 // SetProtocolOptions sets the protocol options for the TFTP protocol
