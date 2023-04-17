@@ -20,8 +20,8 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 	c.nextSeqNum = 0 // settings to 0 for first data packet
 	ack := tftp.NewAck(c.nextSeqNum)
 	log.Printf("Sending initial ACK packet: %v\n", ack)
-	c.nextSeqNum++                     // increment for first data packet
-	_, err = conn.Write(ack.ToBytes()) //send initial ACK packet
+	c.nextSeqNum++                                                 // increment for first data packet
+	_, err = conn.Write(tftp.Xor(ack.ToBytes(), c.dhke.aes512Key)) //send initial ACK packet
 	if err != nil {
 		c.sendAbort()
 		return errors.New("error sending initial ACK packet: " + err.Error()), false
@@ -30,6 +30,7 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 		n, err := conn.Read(dataPacket)
 		c.ADti(n)                   // add bytes to incoming data running data
 		dataPacket = dataPacket[:n] // trim packet to size of data
+		dataPacket = tftp.Xor(dataPacket, c.dhke.aes512Key)
 		opcode := binary.BigEndian.Uint16(dataPacket[:2])
 		switch tftp.TFTPOpcode(opcode) {
 		case tftp.TFTPOpcodeERROR:
@@ -39,6 +40,7 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 		case tftp.TFTPOpcodeTERM:
 			return errors.New("termination packet received"), false
 		case tftp.TFTPOpcodeDATA:
+			log.Printf("Data packet received: %v\n", dataPacket)
 			lb = c.receiveDataPacket(dataPacket) // handle data packet
 			break
 		default:

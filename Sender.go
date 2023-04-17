@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"hash/crc32"
 	"log"
 	"math/big"
 	"math/rand"
@@ -41,8 +40,6 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	py.SetBytes(req.Options["keyy"])                         // Set the big ints to the clients public keys
 	c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py) // Generate the shared key
 	c.SetProtocolOptions(req.Options, 0)                     //Set the protocol options
-	log.Printf("Shared Secret: %s\n", c.dhke.sharedKey)
-	log.Printf("Sending request packet for %d\n", crc32.ChecksumIEEE(c.dhke.sharedKey))
 
 	// Lazy interface to new option packets
 	opAck2 := tftp.OptionAcknowledgement{
@@ -86,6 +83,7 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	n, _ := c.conn.Read(packet)                                      //Read the initial ACK
 	c.ADti(n)                                                        // Add to the total bytes received to running outgoing total
 	packet = packet[:n]                                              //Trim the packet to the size of the data received
+	packet = tftp.Xor(packet, c.dhke.aes512Key)                      //XOR the packet with the shared key
 	err := ack.Parse(packet)                                         // Parse the ACK
 	log.Printf("Initial ACK received: %v\n", ack)
 	if err != nil {
@@ -99,13 +97,17 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	// Loop until all data blocks have been sent and acknowledged
 	// Send packets within the window size
 	for nextSeqNum < base+WindowSize && nextSeqNum <= len(c.dataBlocks) {
-		packet = c.dataBlocks[nextSeqNum-1].ToBytes() //Get the data block and convert it to a byte slice
-		n, err = c.conn.WriteToUDP(packet, addr)      //Send the data block
-		c.ADto(n)                                     // Add to the total bytes sent to running outgoing total
+		packet = c.dataBlocks[nextSeqNum-1].ToBytes() //Get the data block and convert it to a byte sliceft
+		log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
+		packet = tftp.Xor(packet, c.dhke.aes512Key) //XOR the packet with the shared key
+		n, err = c.conn.WriteToUDP(packet, addr)    //Send the data block
+		c.ADto(n)                                   // Add to the total bytes sent to running outgoing total
 		//log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
-		nextSeqNum++ //Increment the next sequence number
-
+		nextSeqNum++                                           //Increment the next sequence number
+		packet = make([]byte, 520)                             //Reset the packet byte slice
 		n, _ = c.conn.Read(packet)                             //Read the ACK
+		packet = packet[:n]                                    //Trim the packet to the size of the data received
+		packet = tftp.Xor(packet, c.dhke.aes512Key)            //XOR the packet with the shared key
 		c.ADti(n)                                              // Add to the total bytes received to running outgoing total
 		if nErr, ok := err.(net.Error); ok && nErr.Timeout() { //Check if the error is a timeout error
 			log.Printf("Timeout, resending unacknowledged packets\n") //If it is a timeout error, log it and increment the timeout counter
@@ -124,7 +126,6 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 
 		tOuts = 0 // Reset consecutive timeouts counter when an ACK is received
 
-		packet = packet[:n]                           //Trim the packet to the size of the data received
 		opcode := binary.BigEndian.Uint16(packet[:2]) //Get the opcode from the packet
 		switch tftp.TFTPOpcode(opcode) {
 		case tftp.TFTPOpcodeACK: //If the opcode is an ACK
@@ -161,12 +162,12 @@ func (c *TFTPProtocol) sender2(addr *net.UDPAddr) error {
 	// Initialize variables
 	var ack tftp.Ack //
 	log.Println("Starting sender transfer TFTP loop")
-	packet := make([]byte, 520)                            //Byte buffer
-	WindowSize, base, nextSeqNum, dropProb := 8, 1, 1, .20 //Window size, base, next sequence number, and drop probability
-	n, _ := c.conn.Read(packet)                            //Read the initial ACK
-	c.ADti(n)                                              // Add to the total bytes received to running outgoing total
-	packet = packet[:n]                                    //Trim the packet to the size of the data received
-	err := ack.Parse(packet)                               //
+	packet := make([]byte, 520)                             //Byte buffer
+	WindowSize, base, nextSeqNum, dropProb := 8, 1, 1, .20  //Window size, base, next sequence number, and drop probability
+	n, _ := c.conn.Read(tftp.Xor(packet, c.dhke.aes512Key)) //Read the initial ACK
+	c.ADti(n)                                               // Add to the total bytes received to running outgoing total
+	packet = packet[:n]                                     //Trim the packet to the size of the data received
+	err := ack.Parse(packet)                                //
 	// set timeout
 	c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	log.Printf("Initial ACK received: %v\n", ack)
