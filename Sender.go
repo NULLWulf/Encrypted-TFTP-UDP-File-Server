@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"log"
 	"math/big"
 	"math/rand"
@@ -35,12 +36,14 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	c.dhke = new(DHKESession) // Create a new DHKE session
 	c.dhke.GenerateKeyPair()  // Generate a new key pair for server
 	// get bytes conver to big int
-	px, py := new(big.Int), new(big.Int)                // Create new big ints to hold clients public keys
-	px.SetBytes(req.Options["keyx"])                    // Set the big ints to the clients public keys
-	py.SetBytes(req.Options["keyy"])                    // Set the big ints to the clients public keys
-	c.dhke.sharedKey = c.dhke.generateSharedKey(px, py) // Generate the shared key
-	c.SetProtocolOptions(req.Options, 0)                //Set the protocol options
+	px, py := new(big.Int), new(big.Int)                     // Create new big ints to hold clients public keys
+	px.SetBytes(req.Options["keyx"])                         // Set the big ints to the clients public keys
+	py.SetBytes(req.Options["keyy"])                         // Set the big ints to the clients public keys
+	c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py) // Generate the shared key
+	c.SetProtocolOptions(req.Options, 0)                     //Set the protocol options
 	log.Printf("Shared Secret: %s\n", c.dhke.sharedKey)
+	log.Printf("Sending request packet for %d\n", crc32.ChecksumIEEE(c.dhke.sharedKey))
+
 	// Lazy interface to new option packets
 	opAck2 := tftp.OptionAcknowledgement{
 		Opcode: tftp.TFTPOpcodeOACK,
@@ -48,7 +51,8 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		KeyY:   c.dhke.pubKeyY.Bytes(),
 	}
 
-	c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.dhke.sharedKey) //Prepare the data blocks
+	//c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.dhke.sharedKey) //Prepare the data blocks
+	c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.dhke.aes512Key) //Prepare the data blocks
 	if err != nil {
 		c.sendError(5, "Error preparing data blocks")
 		return
@@ -76,7 +80,7 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	var ack tftp.Ack
 	log.Println("Starting sender transfer TFTP loop")
 	packet := make([]byte, 520)                                      //Byte slice "buffer"
-	base, nextSeqNum, dropProb := 1, 1, .20                          //Initialize the base, next sequence number, and drop probability
+	base, nextSeqNum := 1, 1                                         //Initialize the base, next sequence number, and drop probability
 	tOuts, mDelay, iDelay := 0, 30*time.Second, 500*time.Millisecond //Initialize the timeout counter, max delay, and initial delay
 	delay := iDelay                                                  // set initial to delay to current delay value
 	n, _ := c.conn.Read(packet)                                      //Read the initial ACK
@@ -95,13 +99,6 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	// Loop until all data blocks have been sent and acknowledged
 	// Send packets within the window size
 	for nextSeqNum < base+WindowSize && nextSeqNum <= len(c.dataBlocks) {
-		if rand.Float64() < dropProb && DropPax && nextSeqNum > WindowSize { //DropPax is a global variable that is set to true if the user wants to simulate packet loss
-			// uses probability of 0.2 to drop a packet
-			log.Printf("Dropped packet %d\n", nextSeqNum)
-			nextSeqNum-- //Decrement the next sequence number so that the next packet sent will be the same
-			continue     //Continue to the next iteration of the loop
-		}
-
 		packet = c.dataBlocks[nextSeqNum-1].ToBytes() //Get the data block and convert it to a byte slice
 		n, err = c.conn.WriteToUDP(packet, addr)      //Send the data block
 		c.ADto(n)                                     // Add to the total bytes sent to running outgoing total

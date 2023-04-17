@@ -16,6 +16,7 @@ import (
 	"CSC445_Assignment2/tftp"
 	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"log"
 	"math/big"
 	"net"
@@ -47,6 +48,7 @@ func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTim
 	options["keyy"] = c.dhke.pubKeyY.Bytes() // set the y public key to the map
 	// random 256 bit key
 	// set the key to the map
+	log.Printf("Sending request packet for %d\n", crc32.ChecksumIEEE(c.dhke.sharedKey))
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, options)
 	packet, _ := reqPack.ToBytes()
 	c.SetProtocolOptions(options, 0) // sets the protocol options
@@ -105,7 +107,7 @@ func (c *TFTPProtocol) preDataTransfer() error {
 			px, py := new(big.Int), new(big.Int)
 			px.SetBytes(oackPack.KeyX)
 			py.SetBytes(oackPack.KeyY)
-			c.dhke.sharedKey = c.dhke.generateSharedKey(px, py)
+			c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py)
 			log.Printf("Shared Key: %s\n", c.dhke.sharedKey)
 			if err != nil {
 				return fmt.Errorf("error parsing OACK packet: %s", err)

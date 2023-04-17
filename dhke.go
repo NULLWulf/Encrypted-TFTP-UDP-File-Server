@@ -3,9 +3,12 @@ package main
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	_ "crypto/ecdh"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/sha512"
+	"errors"
 	"math/big"
 )
 
@@ -14,6 +17,7 @@ type DHKESession struct {
 	pubKeyX    *big.Int
 	pubKeyY    *big.Int
 	sharedKey  []byte
+	aes512Key  []byte
 }
 
 func (d *DHKESession) EncryptAes(data []byte, key []byte) []byte {
@@ -70,15 +74,29 @@ func (d *DHKESession) GenerateKeyPair() {
 	d.privateKey, d.pubKeyX, d.pubKeyY, _ = elliptic.GenerateKey(curve, rand.Reader)
 }
 
-// GenerateSharedKey generates the shared key using the private key and the public key of the other party.
-func (d *DHKESession) generateSharedKey(pubKeyX, pubKeyY *big.Int) []byte {
+func (d *DHKESession) generateSharedKey(pubKeyX, pubKeyY *big.Int) ([]byte, error) {
 	curve := elliptic.P256()
-	x, _ := curve.ScalarMult(pubKeyX, pubKeyY, d.privateKey)
-	return x.Bytes()
+
+	if !curve.IsOnCurve(pubKeyX, pubKeyY) {
+		return nil, errors.New("public key is not on the curve")
+	}
+
+	x, y := curve.ScalarMult(pubKeyX, pubKeyY, d.privateKey)
+	if x == nil || y == nil {
+		return nil, errors.New("invalid input to ScalarMult")
+	}
+
+	d.aes512Key = (deriveAESKey512(x.Bytes()))
+	return x.Bytes(), nil
 }
 
 // Derive the AES key from the shared secret using SHA-256
-func deriveAESKey(sharedSecret []byte) []byte {
+func deriveAESKey256(sharedSecret []byte) []byte {
 	hash := sha256.Sum256(sharedSecret)
+	return hash[:]
+}
+
+func deriveAESKey512(sharedSecret []byte) []byte {
+	hash := sha512.Sum512(sharedSecret)
 	return hash[:]
 }

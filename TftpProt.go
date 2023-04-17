@@ -2,7 +2,6 @@ package main
 
 import (
 	"CSC445_Assignment2/tftp"
-	"crypto/rand"
 	"encoding/binary"
 	"log"
 	"math/big"
@@ -213,15 +212,4 @@ func PrepareData(data []byte, blockSize int, xorKey []byte) (dataQueue []*tftp.D
 	}
 	log.Printf("Finished preparing data, %d blocks", len(dataQueue))
 	return
-}
-
-func GenKey128() ([]byte, error) {
-	key := make([]byte, 16) // 16 bytes = 128 bits
-
-	_, err := rand.Read(key)
-	if err != nil {
-		return nil, err
-	}
-
-	return key, nil
 }
