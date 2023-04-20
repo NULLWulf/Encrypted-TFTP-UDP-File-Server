@@ -40,7 +40,7 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 		case tftp.TFTPOpcodeTERM:
 			return errors.New("termination packet received"), false
 		case tftp.TFTPOpcodeDATA:
-			log.Printf("Data packet received: %v\n", dataPacket)
+			//log.Printf("Data packet received: %v\n", dataPacket)
 			lb = c.receiveDataPacket(dataPacket) // handle data packet
 			break
 		default:
