@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	_ "crypto/ecdh"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -18,54 +16,6 @@ type DHKESession struct {
 	pubKeyY    *big.Int
 	sharedKey  []byte
 	aes512Key  []byte
-}
-
-func (d *DHKESession) EncryptAes(data []byte, key []byte) []byte {
-	iv := make([]byte, aes.BlockSize)
-	if _, err := rand.Read(iv); err != nil {
-		panic(err)
-	}
-
-	block, _ := aes.NewCipher(key)
-
-	// Encrypt the plaintext using CBC mode
-	mode := cipher.NewCBCEncrypter(block, iv)
-	ciphertext := make([]byte, len(data))
-	mode.CryptBlocks(ciphertext, data)
-
-	// Prepend the IV to the ciphertext
-	encryptedPacket := append(iv, ciphertext...)
-
-	return encryptedPacket
-}
-
-// decrypt decrypts an encrypted packet using AES-CBC mode
-func Decrypt(encryptedPacket []byte, key []byte) ([]byte, error) {
-	// Create a new AES cipher block
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-
-	// Extract the IV and ciphertext from the encrypted packet
-	iv := encryptedPacket[:aes.BlockSize]
-	ciphertext := encryptedPacket[aes.BlockSize:]
-
-	// Decrypt the ciphertext using CBC mode
-	mode := cipher.NewCBCDecrypter(block, iv)
-	plaintext := make([]byte, len(ciphertext))
-	mode.CryptBlocks(plaintext, ciphertext)
-
-	// Unpad the plaintext to remove PKCS#7 padding
-	plaintext = unpad(plaintext)
-
-	return plaintext, nil
-}
-
-// unpad removes PKCS#7 padding from the input data
-func unpad(data []byte) []byte {
-	padding := int(data[len(data)-1])
-	return data[:len(data)-padding]
 }
 
 // GenerateKeyPair a public-private key pair for the DHKE using the elliptic curve P-256.

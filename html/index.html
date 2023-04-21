@@ -1,60 +1,58 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <title>Clien to Proxy Server Image Fetch</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.0.0/dist/chart.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 </head>
 <body>
 <div>
-<div>
-    <label for="image-url">Enter image URL:</label>
-    <input type="text" id="image-url" name="image-url">
-    <button onclick="fetchImage()">Fetch Image</button>
-    <p>https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png</p>
-    <p>https://rare-gallery.com/uploads/posts/577429-star-wars-high.jpg</p>
-</div>
-<div style="width: 500px;">
-    <img id="image-container" src="" alt="Image">
-</div>
-<div>
-  <h2>Abstract</h2>
-  <p>The purpose of this assignment was to build from scratch a TFTP Sliding Window Protocol that uses option extension for option negotation.
-    The user is able to navigate to a web map, put in a link to an image (must be a direct link suffixed by it's appropriate file type (jpeg, png, etc.)) 
-  The image link is then delivered through a TFTP request in which a connection to a serve begins.  The server fetches the image via HTTP place it a queue, 
- in which is this data is broken up and sit via packets back to the client, and likewise display on the web page.
-  </p>
-  <h2>Process</h2>
-  <ol>
-  <li>User enters URL of image into text box and pressed button</li>
-  <li>Url is sent via HTTP to client server.</li>
-  <li>Client packs image request url and encryption key into TFTP Request packet.</li>
-  <li>Client sends request to TFTP Server which then requests the image over HTTP.</li>
-  <li>Server fetches image and places it in a queue.</li>
-  <li>Server splits the data into blocks and encrypts with XOR, and also calculates a checksum on the data.</li>
-  <li>Server sends Option Ack packet back to client, client receive and then sends 0 ack back which then begins the transfer client side.</li>
-  <li>Server sends packets over UDP utilizing Go Back - N of given window sizes.</li>
-  <li>Client receives packets, performing checksums, looking at the packet ordering, and xoring the data.</li>
-  <li>Client sends acks back to server.</li>
-  <li>Server receives acks and then sends the next packet in the window.</li>
-  <li>Client receives the last packet, and then sends an ack back to the server.</li>
-  <li>Server receives the last ack and then closes the connection.</li>
-  <li>Client receives the last ack and then closes the connection.</li>
-  <li>Client reconstructs the received packets</li>
-  <li>Client decrypts the data</li>
-  <li>Client displays the image</li>
-</ol>
-</div>
-<div class="section">
-    <h2>Throughput Results in Mbps</h2>
-    <canvas id="Network1" width="750px" height="500px"></canvas>
-  </div>
+    <div>
+        <div>
+            <label for="image-url">Enter image URL:</label>
+            <input type="text" id="image-url" name="image-url">
+            <button onclick="fetchImage()">Fetch Image</button>
+            <p>https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png</p>
+            <p>https://rare-gallery.com/uploads/posts/577429-star-wars-high.jpg</p>
+        </div>
+    <div style="width: 500px;">
+        <img id="image-container" src="" alt="Image">
+    </div>
+    <div>
+        <div>
+            <h2>Current Process</h2>
+              <ol>
+                  <li>User enters URL of image into text box and pressed button</li>
+                  <li>Url is sent via HTTP to client server.</li>
+                  <li>Client starts a DHKE Session, generated an ECC 256 Key Pair for Client.</li>
+                  <li>Client sends request pack containing Public ECC key pair, file, and other option data to TFTP Server.</li>
+                  <li>Server receives request, unpacks, generates a Public ECC key pair for itself. </li>
+                  <li>Server then attempts to generate a shared key.  Currently if there is a failure in key generation, the protocol fails completely.</li>
+                  <li>Server sends negotiated options packet which includes a Public ECC key pair </li>
+                  <li>Client receives the negotiated options packet, unpacks, and attempts to generate a shared key.</li>
+                  <li>If successful, client sends ack packet in which all traffic thereafter is encrypted with XOR</li>
+                  <li>Server fetches image and holds in memory.</li>
+                  <li>Server splits the data into blocks and encrypts with XOR, and also calculates a checksum on the data.</li>
+                  <li>Server sends Option Ack packet back to client, client receive and then sends 0 ack back which then begins the transfer client side.</li>
+                  <li>Server sends packets over UDP utilizing Go Back - N of given window sizes.</li>
+                  <li>Client receives packets, performing checksums, looking at the packet ordering, and xoring the data.</li>
+                  <li>Client sends acks back to server.</li>
+                  <li>Server receives acks and then sends the next packet in the window.</li>
+                  <li>Client receives the last packet, and then sends an ack back to the server.</li>
+                  <li>Server receives the last ack and then closes the connection.</li>
+                  <li>Client receives the last ack and then closes the connection.</li>
+                  <li>Client reconstructs the received packets</li>
+                  <li>Client decrypts the data</li>
+                  <li>Client displays the image</li>
+            </ol>
+        </div>
+        <div>
+            <h2>Known Issues</h2>
+        </div>
+    </div>
 </div>
 <script>
-  // Register the plugin to all charts:
-  Chart.register(ChartDataLabels);
     function fetchImage() {
         const url = document.getElementById("image-url").value;
         fetch(`/getImage?url=${url}`)
@@ -65,80 +63,6 @@
             })
             .catch(error => console.error(error));
     }
-
-
-    var wiredRttCtx = document.getElementById("Network1").getContext("2d");
-    var Network1 = [0.76, 0.54, 0.76, 0.83];
-    var Network2 = [3.66, 2.35, 4.12, 3.65];
-    var Network1Name = "Laptop -> Pi";
-    var Network2Name = "PI -> Moxie";
-    
-
-      var wiredRttChart = new Chart(wiredRttCtx, {
-        plugins: [ChartDataLabels],
-        type: "bar",
-        data: {
-          labels: ["Window 8, No Drops", "Window 8, Drops", "Window 16, No Drops", "Window 16, Drops"],
-          datasets: [
-            {
-              label: Network1Name,
-              data: Network1,
-              backgroundColor: "rgba(255, 99, 132, 0.5)",
-              borderColor: "rgba(255, 99, 132, 1)",
-              borderWidth: 1,
-                
-            },
-            {
-              label: Network2Name,
-              data: Network2,
-              backgroundColor: "rgba(54, 162, 235, 0.5)",
-              borderColor: "rgba(54, 162, 235, 1)",
-              borderWidth: 1,
-            },
-          ],
-        },
-        options: {
-          plugins: {
-      // Change options for ALL labels of THIS CHART
-      datalabels: {
-        color: '#000000',
-        anchor: 'end'
-      }
-    },
-          responsive: false,
-          legend: {
-            position: "top",
-          },
-          title: {
-            display: true,
-            text: "Throughput (in Mbps)",
-          },
-          scales: {
-            yAxes: [
-              {
-                scaleLabel: {
-                  display: true,
-                  labelString: "Throughput (in Mbps)",
-                  color: "rgba(255, 99, 132, 1)",
-                },
-                ticks: {
-                  beginAtZero: true,
-              
-                },
-              },
-            ],
-            xAxes: [
-              {
-                scaleLabel: {
-                  display: true,
-                  labelString: "Variations",
-                  color: "rgba(255, 99, 132, 1)",
-                },
-              },
-            ],
-          },
-        },
-      });
 </script>
 </body>
 </html>
