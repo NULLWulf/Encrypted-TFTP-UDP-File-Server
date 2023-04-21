@@ -49,6 +49,20 @@
         </div>
         <div>
             <h2>Known Issues</h2>
+                <ol>
+                    <li>ECC Key Pair fails to calculate, implementation WIP to negotiate key generation issues</li>
+                    <li>For fatal errors during protocol (e.g. panics) sometimes the client and server will fail to recover to listening state</li>
+                </ol>
+        </div>
+        <div>
+            <h3>Goals</h3>
+                <ol>
+                    <li>Successfully negotiate secret key negotiation so that ALL traffic is encrypted</li>
+                    <li>This is needed because eventually the Request packet will contains auth information</li>
+                    <li>Implement primitive authentication. This could just be a key that is attached to request packet that server does a lookup to ensure they can use the server</li>
+                    <li>Implement more robust encryption then XOR</li>
+                    <li>File Retrieval and Storing (encrypted with a key)</li>
+                </ol>
         </div>
     </div>
 </div>
