@@ -20,6 +20,7 @@ import (
 	"log"
 	"math/big"
 	"net"
+	"time"
 )
 
 // NewTFTPClient method constructs a new TFTPProtocol struct
@@ -42,6 +43,7 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTime float64) {
 	// make a map with a key field
 	options := make(map[string][]byte)
+	c.conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond)) // sets the read deadline
 	c.dhke = new(DHKESession)
 	c.dhke.GenerateKeyPair()
 	options["keyx"] = c.dhke.pubKeyX.Bytes() // set the x public key to the map

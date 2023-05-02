@@ -73,7 +73,6 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 // within the timeout period, the data block is resent.  If an error
 // occurs, the error is logged and the loop is exited.
 func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
-	defer c.conn.SetReadDeadline(time.Time{})
 	var ack tftp.Ack
 	log.Println("Starting sender transfer TFTP loop")
 	packet := make([]byte, 520)                                      //Byte slice "buffer"
@@ -98,7 +97,7 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	// Send packets within the window size
 	for nextSeqNum < base+WindowSize && nextSeqNum <= len(c.dataBlocks) {
 		packet = c.dataBlocks[nextSeqNum-1].ToBytes() //Get the data block and convert it to a byte sliceft
-		log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
+		//log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
 		packet = tftp.Xor(packet, c.dhke.aes512Key) //XOR the packet with the shared key
 		n, err = c.conn.WriteToUDP(packet, addr)    //Send the data block
 		c.ADto(n)                                   // Add to the total bytes sent to running outgoing total

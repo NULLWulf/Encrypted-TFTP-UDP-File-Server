@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	//for i := 0; i < 100; i++ {
+	//for i := 0; i < 100000000000000; i++ {
 	//	DHKETester()
 	//}
 
