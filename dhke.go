@@ -6,7 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
-	"errors"
+	"log"
 	"math/big"
 )
 
@@ -24,16 +24,14 @@ func (d *DHKESession) GenerateKeyPair() {
 	d.privateKey, d.pubKeyX, d.pubKeyY, _ = elliptic.GenerateKey(curve, rand.Reader)
 }
 
+func (d *DHKESession) curveCheck(pubKeyX, pubKeyY *big.Int) bool {
+	curve := elliptic.P256()
+	return curve.IsOnCurve(pubKeyX, pubKeyY)
+}
+
 // generateSharedKey generates the shared key using the public key and the private key
 func (d *DHKESession) generateSharedKey(pubKeyX, pubKeyY *big.Int) ([]byte, error) {
 	curve := elliptic.P256()
-
-	// Check if the public key is on the curve
-	// If not, generate a new key pair
-	if !curve.IsOnCurve(pubKeyX, pubKeyY) {
-		d.GenerateKeyPair() // Generate a new key pair
-		return nil, errors.New("public key is not on the curve")
-	}
 
 	var x, y *big.Int
 	// Generate the shared key until it is not nil
@@ -58,4 +56,28 @@ func deriveAESKey256(sharedSecret []byte) []byte {
 func deriveAESKey512(sharedSecret []byte) []byte {
 	hash := sha512.Sum512(sharedSecret)
 	return hash[:]
+}
+
+func DHKETester() {
+	client := new(DHKESession)
+	server := new(DHKESession)
+	client.GenerateKeyPair()
+	server.GenerateKeyPair()
+	key, err := client.generateSharedKey(server.pubKeyX, server.pubKeyY)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		return
+	}
+	sharedKey, err := server.generateSharedKey(client.pubKeyX, client.pubKeyY)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		return
+	}
+
+	// Asset keys are the same
+	if string(key) != string(sharedKey) {
+		log.Printf("Error: keys are not the same")
+		return
+	}
+	log.Printf("Keys are the same: %s", key)
 }

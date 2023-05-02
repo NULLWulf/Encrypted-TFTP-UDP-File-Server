@@ -5,6 +5,10 @@ import (
 )
 
 func main() {
+	//for i := 0; i < 100; i++ {
+	//	DHKETester()
+	//}
+
 	//TestRetrievingFile()
 	//os.Exit(0)
 	// Parse the command line arguments

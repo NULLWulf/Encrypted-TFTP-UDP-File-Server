@@ -63,14 +63,6 @@ func (c *TFTPProtocol) handleConnectionsUDP2() {
 		msg := buf[:n]
 
 		c.handleRequestWithRecovery(raddr, msg)
-		// handle request concurrently
-		//err = func() {
-		//	if r := recover(); r != nil {
-		//		log.Println("Recovered from panic:", r)
-		//		return error("Recovered from panic"")
-		//	}
-		//}()
-		//c.handleRequest(raddr, msg)
 
 	}
 }
@@ -88,6 +80,7 @@ func (c *TFTPProtocol) handleRequestWithRecovery(raddr *net.UDPAddr, msg []byte)
 }
 
 func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
+	// TODO Insert pre-request handler here
 	c.ADti(len(buf))
 	code := binary.BigEndian.Uint16(buf[:2])
 	switch tftp.TFTPOpcode(code) {
