@@ -4,11 +4,9 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
-	"sync"
 )
 
 // Mutex to lock thread
-var mutex = &sync.Mutex{}
 
 // RunClientMode starts the client mode
 func RunClientMode() {
@@ -34,8 +32,6 @@ func homepage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 // getImage serves the image
 func getImage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	// Lock thread
-	mutex.Lock()
-	defer mutex.Unlock()
 	imageUrl := r.URL.Query().Get("url")
 	log.Printf("Serving image: %s\n", imageUrl)
 

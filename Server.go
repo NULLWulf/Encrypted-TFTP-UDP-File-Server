@@ -24,7 +24,7 @@ func RunServerMode() {
 		return
 	}
 	defer udpServer.Close()
-	udpServer.handleConnectionsUDP() // launch in separate goroutine
+	udpServer.handleConnectionsUDP2() // launch in separate goroutine
 	select {}
 }
 
@@ -42,6 +42,34 @@ func (c *TFTPProtocol) handleConnectionsUDP() {
 		// decode message
 		msg := buf[:n]
 		c.handleRequest(raddr, msg)
+		// close connection
+		if err != nil {
+			log.Printf("Error closing connection: %s\n", err)
+		}
+	}
+}
+
+func (c *TFTPProtocol) handleConnectionsUDP2() {
+	buf := make([]byte, 516)
+	for {
+		// read message
+		n, raddr, err := c.conn.ReadFromUDP(buf)
+		if err != nil {
+			log.Println("Error reading message:", err)
+			continue
+		}
+
+		// decode message
+		msg := buf[:n]
+
+		// handle request concurrently
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("Recovered from panic:", r)
+			}
+		}()
+		c.handleRequest(raddr, msg)
+
 		// close connection
 		if err != nil {
 			log.Printf("Error closing connection: %s\n", err)
