@@ -113,3 +113,26 @@ func (c *TFTPProtocol) sendError(addr *net.UDPAddr, errCode uint16, errMsg strin
 		return
 	}
 }
+
+// handleConnectipnUDP handles a single udp "connection" 
+func (c *TFTPProtocol) handleConnectionUDP() { 
+         buf := make([]byte, 1024) 
+         go func() { 
+                 defer func() { 
+                         if r := recover(); r != nil { 
+                                 log.Println("Recovered from panic:", r) 
+                         } 
+                 }() 
+                 for { 
+                         // read message 
+                         n, raddr, err := c.conn.ReadFromUDP(buf) 
+                         if err != nil { 
+                                 log.Println("Error reading message:", err) 
+                                 continue 
+                         } 
+                         // decode message 
+                         msg := buf[:n] 
+                         c.handleRequest(raddr, msg) 
+                 } 
+         }() 
+ }
