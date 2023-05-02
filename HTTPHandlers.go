@@ -4,6 +4,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
+	"os"
 )
 
 // Mutex to lock thread
@@ -51,5 +52,11 @@ func getImage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	w.Header().Set("Content-Type", "image/jpeg") // set the content type
 	n, err := w.Write(img)
 	log.Printf("Serving image of size: %d\n", n)
+	// Save it to client files folder
+	err = os.WriteFile("./client_files/"+imageUrl, img, 0644)
+	if err != nil {
+		log.Printf("Error saving file: %s\n", err)
+		return
+	}
 	return
 }

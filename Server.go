@@ -62,19 +62,29 @@ func (c *TFTPProtocol) handleConnectionsUDP2() {
 		// decode message
 		msg := buf[:n]
 
+		c.handleRequestWithRecovery(raddr, msg)
 		// handle request concurrently
-		defer func() {
-			if r := recover(); r != nil {
-				log.Println("Recovered from panic:", r)
-			}
-		}()
-		c.handleRequest(raddr, msg)
+		//err = func() {
+		//	if r := recover(); r != nil {
+		//		log.Println("Recovered from panic:", r)
+		//		return error("Recovered from panic"")
+		//	}
+		//}()
+		//c.handleRequest(raddr, msg)
 
-		// close connection
-		if err != nil {
-			log.Printf("Error closing connection: %s\n", err)
-		}
 	}
+}
+
+func (c *TFTPProtocol) handleRequestWithRecovery(raddr *net.UDPAddr, msg []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Recovered from panic:", r)
+		}
+	}()
+
+	c.handleRequest(raddr, msg)
+	return
+	//return nil
 }
 
 func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
