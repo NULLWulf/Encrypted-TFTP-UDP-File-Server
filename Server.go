@@ -63,7 +63,6 @@ func (c *TFTPProtocol) handleConnectionsUDP2() {
 		msg := buf[:n]
 
 		c.handleRequestWithRecovery(raddr, msg)
-
 	}
 }
 
