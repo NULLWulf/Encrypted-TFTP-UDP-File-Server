@@ -92,7 +92,6 @@ func getImage2(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		if err == nil {
 			break
 		}
-
 		log.Printf("Retry #%d requesting file %s...\n", numTries+1, imageUrl)
 		numTries++
 	}
