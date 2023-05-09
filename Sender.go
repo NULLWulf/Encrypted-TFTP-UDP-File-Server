@@ -25,7 +25,7 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		c.sendError(5, parseErr.Error())
 		return
 	}
-	log.Printf("Received %d bytes from %s for file %s \n", len(buf), addr, string(req.Filename))
+	log.Printf("Received %d bytes from %s for file %s \n", len(buf), addr.String(), string(req.Filename))
 	//err, img := IQ.AddNewAndReturnImg(string(req.Filename)) //Add the image to the image queue
 	file, err := ProxyRequest(string(req.Filename))
 
@@ -40,7 +40,12 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	px.SetBytes(req.Options["keyx"])                         // Set the big ints to the clients public keys
 	py.SetBytes(req.Options["keyy"])                         // Set the big ints to the clients public keys
 	c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py) // Generate the shared key
-	c.SetProtocolOptions(req.Options, 0)                     //Set the protocol options
+	if err != nil {
+		log.Printf("Error generating shared key: %v\n", err.Error())
+		c.sendError(11, "Error generating shared key")
+		return
+	}
+	c.SetProtocolOptions(req.Options, 0) //Set the protocol options
 	log.Printf("Shared Key Chechksum %d\n", crc32.ChecksumIEEE(c.dhke.sharedKey))
 	// Lazy interface to new option packets
 	opAck2 := tftp.OptionAcknowledgement{
@@ -172,7 +177,6 @@ func (c *TFTPProtocol) sender2(addr *net.UDPAddr) error {
 	packet = packet[:n]                                     //Trim the packet to the size of the data received
 	err := ack.Parse(packet)                                //
 	// set timeout
-	c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	log.Printf("Initial ACK received: %v\n", ack)
 	if err != nil {
 		return errors.New("error parsing ack packet: " + err.Error())

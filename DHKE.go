@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"log"
 	"math/big"
 )
@@ -33,6 +34,11 @@ func (d *DHKESession) curveCheck(pubKeyX, pubKeyY *big.Int) bool {
 func (d *DHKESession) generateSharedKey(pubKeyX, pubKeyY *big.Int) ([]byte, error) {
 	curve := elliptic.P256()
 	var x, y *big.Int
+
+	if !d.curveCheck(pubKeyX, pubKeyY) {
+		return nil, errors.New("public key is not on the curve")
+	}
+
 	// Generate the shared key until it is not nil
 	for generated := false; !generated; {
 		x, y = curve.ScalarMult(pubKeyX, pubKeyY, d.privateKey)

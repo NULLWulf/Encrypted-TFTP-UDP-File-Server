@@ -21,8 +21,6 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 	ack := tftp.NewAck(c.nextSeqNum)
 	log.Printf("Sending initial ACK packet: %v\n", ack)
 	c.nextSeqNum++ // increment for first data packet
-	//_, err = conn.Write(tftp.Xor(ack.ToBytes(), c.dhke.aes512Key)) //send initial ACK packet
-	//packet, _ := encrypt(ack.ToBytes(), c.dhke.aes512Key)
 	dataPacket = ack.ToBytes()
 	_, err = conn.Write(dataPacket)
 	if err != nil {
@@ -30,6 +28,7 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 		return errors.New("error sending initial ACK packet: " + err.Error()), false
 	}
 	for { // loop until packet received
+		dataPacket = make([]byte, 1024) // reset data packet
 		n, err := conn.Read(dataPacket)
 		c.ADti(n)                   // add bytes to incoming data running data
 		dataPacket = dataPacket[:n] // trim packet to size of data

@@ -51,14 +51,12 @@ func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
 	if options["keyy"] != nil {
 		v := new(big.Int)
 		v.SetBytes(options["keyy"])
-		log.Println("Key Y:", v)
 		c.key = options["keyy"]
 	}
 	if options["keyx"] != nil {
 		// convert to big int
 		v := new(big.Int)
 		v.SetBytes(options["keyx"])
-		log.Println("Key X:", v)
 		c.key = options["keyx"]
 	}
 
