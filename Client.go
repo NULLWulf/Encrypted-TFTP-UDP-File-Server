@@ -36,37 +36,6 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 	return &TFTPProtocol{conn: conn, raddr: remoteAddr, xferSize: 0}, nil
 }
 
-func (c *TFTPProtocol) SendKeyPair() bool {
-	//c.conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond)) // sets the read deadline
-	c.dhke = new(DHKESession) // Make a new DHKE session
-	c.dhke.GenerateKeyPair()  // Generate the key pair
-	keyPair := make([]byte, 64)
-	copy(keyPair[:32], c.dhke.pubKeyX.Bytes())
-	copy(keyPair[32:], c.dhke.pubKeyY.Bytes())
-	_, err := c.conn.Write(keyPair) // sends the request packet
-	n, err := c.conn.Read(keyPair)
-	if err != nil {
-		log.Printf("Error receiving or sending key pair %v. Retrying", err.Error())
-		return false
-	}
-	if n != 64 {
-		log.Println("Key Pair is not the correct size. Retrying")
-		return false
-	}
-	// get the shared secret
-	px, py := new(big.Int), new(big.Int)
-	px.SetBytes(keyPair[:32])
-	py.SetBytes(keyPair[32:])
-	c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py)
-	if err != nil {
-		log.Printf("Error generating shared key: %v. Retrying", err.Error())
-		return false
-	}
-	log.Printf("Shared Key Chechksum %d\n", crc32.ChecksumIEEE(c.dhke.sharedKey))
-	log.Printf("Shared Key Successfully Generated between client and server: %s\n", c.conn.RemoteAddr().String())
-	return true
-}
-
 // RequestFile method sends a request packet to the server and begins the transfer process
 // / and returns the data
 func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTime float64) {
@@ -78,7 +47,6 @@ func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTim
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, options)
 	packet, _ := reqPack.ToBytes()
 	c.SetProtocolOptions(options, 0) // sets the protocol options
-	c.StartTime()                    // starts the timer
 	n, err := c.conn.Write(packet)   // sends the request packet
 	c.ADto(n)                        // adds the number of bytes sent to the total bytes sent running total
 	if err != nil {
@@ -100,12 +68,7 @@ func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTim
 // preDataTransfer method handles the OACK packet and any error packets
 func (c *TFTPProtocol) preDataTransfer() error {
 	packet := make([]byte, 1024)
-	cont := true
 	err := error(nil)
-
-	// loop until we receive an error, term or oack packet
-	// any errors or terms at this stage simply terminate the connection
-	//for {
 	n, tErr := c.conn.Read(packet)
 	if tErr != nil {
 		return fmt.Errorf("error reading packet: %s", err)
@@ -122,13 +85,12 @@ func (c *TFTPProtocol) preDataTransfer() error {
 		}
 		return fmt.Errorf("error code %d: %s", errPack.ErrorCode, errPack.ErrorMessage)
 	case tftp.TFTPOpcodeTERM:
-		log.Printf("Server terminated connection: %s\n", packet)
+		log.Printf("Received Termination packet from server: %s\n", c.conn.RemoteAddr().String())
 		return fmt.Errorf("server terminated connection")
 	case tftp.TFTPOpcodeOACK:
 		log.Printf("Received oack from server: %s\n", c.conn.RemoteAddr().String())
 		var oackPack tftp.OptionAcknowledgement
 		err = oackPack.Parse(packet)
-		// get the shared secret
 		px, py := new(big.Int), new(big.Int)
 		px.SetBytes(oackPack.KeyX)
 		py.SetBytes(oackPack.KeyY)
@@ -141,7 +103,7 @@ func (c *TFTPProtocol) preDataTransfer() error {
 		if err != nil {
 			return fmt.Errorf("error parsing OACK packet: %s", err)
 		}
-		err, cont = c.TftpClientTransferLoop(c.conn) // starts the transfer loop, returns error and bool
+		err, _ = c.TftpClientTransferLoop(c.conn) // starts the transfer loop, returns error and bool
 		// signifying if the transfer is complete or not, and error would terminate the transfer
 		if err != nil {
 			return fmt.Errorf("error in transfer loop: %s", err)
@@ -149,10 +111,7 @@ func (c *TFTPProtocol) preDataTransfer() error {
 	default:
 		log.Printf("Received unexpected packet: %s\n", packet)
 	}
-	if cont { // if the transfer is complete, return nil error
-		log.Printf("Transfer complete\n")
-		return nil
-	}
+
 	//
 	return nil
 }
