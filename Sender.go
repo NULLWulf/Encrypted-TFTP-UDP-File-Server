@@ -8,7 +8,6 @@ import (
 	"hash/crc32"
 	"log"
 	"math/big"
-	"math/rand"
 	"net"
 	"time"
 )
@@ -104,19 +103,13 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	// Send packets within the window size
 	for nextSeqNum < base+WindowSize && nextSeqNum <= len(c.dataBlocks) {
 		packet = c.dataBlocks[nextSeqNum-1].ToBytes() //Get the data block and convert it to a byte sliceft
-		//log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
-		//packet = tftp.Xor(packet, c.dhke.aes512Key) //XOR the packet with the shared key
 		packet, _ = encrypt(packet, c.dhke.aes512Key)
 		n, err = c.conn.WriteToUDP(packet, addr) //Send the data block
 		c.ADto(n)                                // Add to the total bytes sent to running outgoing total
-		//log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
-		nextSeqNum++ //Increment the next sequence number
-		//packet = make([]byte, 1024)                            //Reset the packet byte slice
-		n, _ = c.conn.Read(packet) //Read the ACK
-		packet = packet[:n]        //Trim the packet to the size of the data received
-		//packet = tftp.Xor(packet, c.dhke.aes512Key)            //XOR the packet with the shared key
+		nextSeqNum++                             //Increment the next sequence number
+		n, _ = c.conn.Read(packet)               //Read the ACK
+		packet = packet[:n]                      //Trim the packet to the size of the data received
 		packet, _ = decrypt(packet, c.dhke.aes512Key)
-		c.ADti(n)                                              // Add to the total bytes received to running outgoing total
 		if nErr, ok := err.(net.Error); ok && nErr.Timeout() { //Check if the error is a timeout error
 			log.Printf("Timeout, resending unacknowledged packets\n") //If it is a timeout error, log it and increment the timeout counter
 			tOuts++                                                   //Increment the timeout counter
@@ -158,97 +151,5 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 		return nil
 	}
 
-	return nil
-}
-
-/*
-sender2 is a modified version of sliding window that attempts to use concurrency to listen for ack packets while sending data packets.
-It is not currently used in the program, but it is left here for future reference.
-*/
-func (c *TFTPProtocol) sender2(addr *net.UDPAddr) error {
-	// ... (unchanged code)\/
-	// Initialize variables
-	var ack tftp.Ack //
-	log.Println("Starting sender transfer TFTP loop")
-	packet := make([]byte, 520)                             //Byte buffer
-	WindowSize, base, nextSeqNum, dropProb := 8, 1, 1, .20  //Window size, base, next sequence number, and drop probability
-	n, _ := c.conn.Read(tftp.Xor(packet, c.dhke.aes512Key)) //Read the initial ACK
-	c.ADti(n)                                               // Add to the total bytes received to running outgoing total
-	packet = packet[:n]                                     //Trim the packet to the size of the data received
-	err := ack.Parse(packet)                                //
-	// set timeout
-	log.Printf("Initial ACK received: %v\n", ack)
-	if err != nil {
-		return errors.New("error parsing ack packet: " + err.Error())
-	}
-	if ack.BlockNumber != 0 {
-		c.sendError(3, "Expected initial block number to be 0")
-		return errors.New("error parsing ack packet: block number should be 0, expecting initial block")
-	}
-
-	// Create channels for ACKs and errors
-	ackCh := make(chan tftp.Ack, WindowSize)
-	errCh := make(chan error)
-
-	// Goroutine to receive ACKs
-	go func() {
-		for {
-			n, _ := c.conn.Read(packet)
-			c.ADti(n)
-			packet = packet[:n]
-			opcode := binary.BigEndian.Uint16(packet[:2])
-			switch tftp.TFTPOpcode(opcode) {
-			case tftp.TFTPOpcodeACK:
-				err := ack.Parse(packet)
-				if err != nil {
-					errCh <- fmt.Errorf("error parsing ACK packet: %s", err)
-					return
-				}
-				ackCh <- ack
-			default:
-				errCh <- fmt.Errorf("received unexpected packet: %v", packet)
-				return
-			}
-		}
-	}()
-
-	// Send packets within the window size
-	for nextSeqNum < base+WindowSize && nextSeqNum <= len(c.dataBlocks) {
-		if rand.Float64() < dropProb && DropPax {
-			log.Printf("Dropped packet %d\n", nextSeqNum)
-			continue // do not increment nextSeqNum when a packet is dropped
-		}
-		packet = c.dataBlocks[nextSeqNum-1].ToBytes()
-		n, err = c.conn.WriteToUDP(packet, addr)
-		c.ADto(n)
-		log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
-		if err != nil {
-			c.sendAbort()
-			return fmt.Errorf("error sending data packet: %s", err)
-		}
-		nextSeqNum++
-	}
-
-	// Check for ACKs with a timeout
-	select {
-	case ack := <-ackCh:
-		log.Printf("Received ACK for packet %d\n", ack.BlockNumber)
-		if ack.BlockNumber >= uint16(base) {
-			base = int(ack.BlockNumber + 1)
-		}
-	case err := <-errCh:
-		log.Printf("Error: %s\n", err)
-		return err
-	case <-time.After(time.Duration(500) * time.Millisecond):
-		// Timeout: resend unacknowledged packets within the window
-		log.Printf("Timeout, resending unacknowledged packets\n")
-		nextSeqNum = base
-	}
-
-	// Check if all packets have been sent and acknowledged
-	if base > len(c.dataBlocks) {
-		log.Printf("All packets sent and acknowledged\n")
-		return nil
-	}
 	return nil
 }
