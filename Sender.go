@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"log"
 	"math/big"
 	"math/rand"
@@ -40,7 +41,7 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	py.SetBytes(req.Options["keyy"])                         // Set the big ints to the clients public keys
 	c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py) // Generate the shared key
 	c.SetProtocolOptions(req.Options, 0)                     //Set the protocol options
-
+	log.Printf("Shared Key Chechksum %d\n", crc32.ChecksumIEEE(c.dhke.sharedKey))
 	// Lazy interface to new option packets
 	opAck2 := tftp.OptionAcknowledgement{
 		Opcode: tftp.TFTPOpcodeOACK,

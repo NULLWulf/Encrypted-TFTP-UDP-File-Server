@@ -11,7 +11,6 @@
 // 6) Begin Sliding Window Protocol of Data
 package main
 
-import "C"
 import (
 	"CSC445_Assignment2/tftp"
 	"encoding/binary"
@@ -38,16 +37,48 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 	return &TFTPProtocol{conn: conn, raddr: remoteAddr, xferSize: 0}, nil
 }
 
+func (c *TFTPProtocol) SendKeyPair() bool {
+	//c.conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond)) // sets the read deadline
+	c.dhke = new(DHKESession) // Make a new DHKE session
+	c.dhke.GenerateKeyPair()  // Generate the key pair
+	keyPair := make([]byte, 64)
+	copy(keyPair[:32], c.dhke.pubKeyX.Bytes())
+	copy(keyPair[32:], c.dhke.pubKeyY.Bytes())
+	_, err := c.conn.Write(keyPair) // sends the request packet
+	n, err := c.conn.Read(keyPair)
+	if err != nil {
+		log.Printf("Error receiving or sending key pair %v. Retrying", err.Error())
+		return false
+	}
+	if n != 64 {
+		log.Println("Key Pair is not the correct size. Retrying")
+		return false
+	}
+	log.Printf("Received Server's Public Key: %s\n", keyPair)
+	// get the shared secret
+	px, py := new(big.Int), new(big.Int)
+	px.SetBytes(keyPair[:32])
+	py.SetBytes(keyPair[32:])
+	c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py)
+	if err != nil {
+		log.Printf("Error generating shared key: %v. Retrying", err.Error())
+		return false
+	}
+	log.Printf("Shared Key Chechksum %d\n", crc32.ChecksumIEEE(c.dhke.sharedKey))
+	log.Printf("Shared Key Successfully Generated between client and server: %s\n", c.conn.RemoteAddr().String())
+	return true
+}
+
 // RequestFile method sends a request packet to the server and begins the transfer process
 // / and returns the data
 func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTime float64) {
 	// make a map with a key field
 	options := make(map[string][]byte)
 	c.conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond)) // sets the read deadline
-	c.dhke = new(DHKESession)
-	c.dhke.GenerateKeyPair()
-	options["keyx"] = c.dhke.pubKeyX.Bytes() // set the x public key to the map
-	options["keyy"] = c.dhke.pubKeyY.Bytes() // set the y public key to the map
+	c.dhke = new(DHKESession)                                      // Make a new DHKE session
+	c.dhke.GenerateKeyPair()                                       // Generate the key pair
+	options["keyx"] = c.dhke.pubKeyX.Bytes()                       // set the x public key to the map
+	options["keyy"] = c.dhke.pubKeyY.Bytes()                       // set the y public key to the map
 	// random 256 bit key
 	// set the key to the map
 	log.Printf("Sending request packet for %d\n", crc32.ChecksumIEEE(c.dhke.sharedKey))
@@ -110,7 +141,7 @@ func (c *TFTPProtocol) preDataTransfer() error {
 			px.SetBytes(oackPack.KeyX)
 			py.SetBytes(oackPack.KeyY)
 			c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py)
-			log.Printf("Shared Key: %s\n", c.dhke.sharedKey)
+			log.Printf("Shared Key: %d\n", crc32.ChecksumIEEE(c.dhke.sharedKey))
 			if err != nil {
 				return fmt.Errorf("error parsing OACK packet: %s", err)
 			}

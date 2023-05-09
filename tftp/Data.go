@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"hash/crc32"
+	"log"
 )
 
 // Data struct represents a TFTP data packet
@@ -36,8 +37,12 @@ func (d *Data) Parse(packet []byte, xorKey []byte) error {
 
 	// Parse the block number, checksum, and data
 	blockNumber := binary.BigEndian.Uint16(packet[2:4])
+	if blockNumber > 189 {
+		log.Printf("Manual break")
+	}
 	checksum := binary.BigEndian.Uint32(packet[4:8])
-	data := Xor(packet[8:], xorKey)
+	//data := Xor(packet[8:], xorKey)
+	data := packet[8:]
 
 	d.Opcode = TFTPOpcodeDATA
 	d.BlockNumber = blockNumber
@@ -54,8 +59,8 @@ func NewData(blockNumber uint16, data []byte, xorKey []byte) (*Data, error) {
 		return nil, errors.New("data is empty")
 	}
 
-	data = Xor(data, xorKey)
-
+	//data = Xor(data, xorKey)
+	//data = data
 	// Calculate the checksum
 	checksum := crc32.ChecksumIEEE(data)
 

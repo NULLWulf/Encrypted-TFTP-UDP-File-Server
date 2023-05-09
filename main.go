@@ -2,10 +2,13 @@ package main
 
 import (
 	"log"
+	"os"
 )
 
 func main() {
-	//for i := 0; i < 100000000000000; i++ {
+	AESTester()
+	os.Exit(0)
+	//for i := 0; i < 100; i++ {
 	//	DHKETester()
 	//}
 

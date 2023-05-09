@@ -82,6 +82,9 @@ func getImage2(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 					log.Printf("Panic occurred while requesting file over TFTP: %v\n", r)
 				}
 			}()
+			for !client.SendKeyPair() {
+				log.Printf("Failed to send key pair, retrying...\n")
+			}
 			err, img, _ = client.RequestFile(imageUrl) // request the file via url
 			if err != nil {
 				log.Printf("Error Requesting File over TFTP: %s\n", err)

@@ -42,7 +42,7 @@ func (d *DHKESession) generateSharedKey(pubKeyX, pubKeyY *big.Int) ([]byte, erro
 		}
 	}
 
-	d.aes512Key = deriveAESKey512(x.Bytes())
+	d.aes512Key = deriveAESKey256(x.Bytes())
 	return x.Bytes(), nil
 }
 
@@ -58,7 +58,7 @@ func deriveAESKey512(sharedSecret []byte) []byte {
 	return hash[:]
 }
 
-func DHKETester() {
+func DHKETester() []byte {
 	client := new(DHKESession)
 	server := new(DHKESession)
 	client.GenerateKeyPair()
@@ -66,18 +66,21 @@ func DHKETester() {
 	key, err := client.generateSharedKey(server.pubKeyX, server.pubKeyY)
 	if err != nil {
 		log.Printf("Error: %s", err)
-		return
+		return nil
 	}
 	sharedKey, err := server.generateSharedKey(client.pubKeyX, client.pubKeyY)
 	if err != nil {
 		log.Printf("Error: %s", err)
-		return
+		return nil
 	}
 
 	// Asset keys are the same
 	if string(key) != string(sharedKey) {
 		log.Printf("Error: keys are not the same")
-		return
+		return nil
 	}
 	log.Printf("Keys are the same: %s", key)
+
+	return sharedKey
+
 }
