@@ -75,34 +75,20 @@ func getImage2(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 
 	var img []byte
 	var numTries int
-	for numTries < 10 {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Panic occurred while requesting file over TFTP: %v\n", r)
-				}
-			}()
-			for !client.SendKeyPair() {
-				log.Printf("Failed to send key pair, retrying...\n")
-			}
-			err, img, _ = client.RequestFile(imageUrl) // request the file via url
-			if err != nil {
-				log.Printf("Error Requesting File over TFTP: %s\n", err)
-				panic(err)
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Panic occurred while requesting file over TFTP: %v\n", r)
 			}
 		}()
 
-		if err == nil {
-			break
+		err, img, _ = client.RequestFile(imageUrl) // request the file via url
+		if err != nil {
+			log.Printf("Error Requesting File over TFTP: %s\n", err)
+			panic(err)
 		}
-		log.Printf("Retry #%d requesting file %s...\n", numTries+1, imageUrl)
-		numTries++
-	}
-
-	if err != nil {
-		log.Printf("Max retries reached, failed to request file %s: %s\n", imageUrl, err)
-		return
-	}
+	}()
+	log.Printf("Retry #%d requesting file %s...\n", numTries+1, imageUrl)
 
 	w.Header().Set("Content-Type", "image/jpeg") // set the content type
 	n, err := w.Write(img)

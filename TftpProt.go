@@ -83,11 +83,9 @@ func (c *TFTPProtocol) sendAbort() {
 
 func (c *TFTPProtocol) sendAck(nextSeqNum uint16) {
 	ack := tftp.NewAck(nextSeqNum)
-	//ackPack := tftp.Xor(ack.ToBytes(), c.dhke.aes512Key)
 	ackPack, _ := encrypt(ack.ToBytes(), c.dhke.aes512Key)
 	n, err := c.conn.Write(ackPack)
 	c.ADto(n)
-	//log.Printf("Sending ACK packet: %d\n", ack.BlockNumber)
 	if err != nil {
 		log.Println("Error sending ACK packet:", err)
 		return

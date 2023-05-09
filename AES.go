@@ -69,8 +69,9 @@ func AESTester() {
 	sharedKey := DHKETester()
 	AES := deriveAESKey256(sharedKey)
 
-	img, err := ProxyRequest("")
+	img, err := ProxyRequest("https://rare-gallery.com/uploads/posts/577429-star-wars-high.jpg")
 	blocks, err := PrepareData(img, 512, AES)
+	log.Printf("Number of blocks: %d\n", len(blocks))
 	if err != nil {
 		log.Printf("Error preparing data: %s\n", err.Error())
 	}
@@ -83,10 +84,6 @@ func AESTester() {
 	}
 	decrypted := make([][]byte, len(blocks))
 	for i, block := range encrypted {
-		log.Printf("Decrypting block %d\n", i)
-		if i == 189 {
-			log.Println("Block 189")
-		}
 		decrypted[i], err = decrypt(block, AES)
 		if err != nil {
 			log.Printf("Error decrypting block: %s\n", err.Error())
@@ -107,7 +104,7 @@ func AESTester() {
 
 	// Check to see if reformed and img are the same
 	if crc32.ChecksumIEEE(reformed) == crc32.ChecksumIEEE(img) {
-		log.Println("Success!")
+		log.Printf("Reformed and original are the same! Checksum: %d\n", crc32.ChecksumIEEE(reformed))
 	}
 	os.WriteFile("test-reformed.jpg", reformed, 0644)
 }

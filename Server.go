@@ -115,7 +115,6 @@ func (c *TFTPProtocol) receiveKeyPair(buf []byte, addr *net.UDPAddr) {
 
 func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
 	// TODO Insert pre-request handler here
-	c.ADti(len(buf))
 	if len(buf) == 64 {
 		c.receiveKeyPair(buf, addr)
 		return

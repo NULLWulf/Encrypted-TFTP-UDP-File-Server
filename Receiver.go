@@ -22,9 +22,9 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 	log.Printf("Sending initial ACK packet: %v\n", ack)
 	c.nextSeqNum++ // increment for first data packet
 	//_, err = conn.Write(tftp.Xor(ack.ToBytes(), c.dhke.aes512Key)) //send initial ACK packet
-	packet, _ := encrypt(ack.ToBytes(), c.dhke.aes512Key)
-	_, err = conn.Write(packet)
-
+	//packet, _ := encrypt(ack.ToBytes(), c.dhke.aes512Key)
+	dataPacket = ack.ToBytes()
+	_, err = conn.Write(dataPacket)
 	if err != nil {
 		c.sendAbort()
 		return errors.New("error sending initial ACK packet: " + err.Error()), false
@@ -33,18 +33,15 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 		n, err := conn.Read(dataPacket)
 		c.ADti(n)                   // add bytes to incoming data running data
 		dataPacket = dataPacket[:n] // trim packet to size of data
-		//dataPacket = tftp.Xor(dataPacket, c.dhke.aes512Key)
 		dataPacket, _ = decrypt(dataPacket, c.dhke.aes512Key)
 		opcode := binary.BigEndian.Uint16(dataPacket[:2])
 		switch tftp.TFTPOpcode(opcode) {
 		case tftp.TFTPOpcodeERROR:
-			// error packet received, handle it, won't necessarily end transfer
 			c.handleErrPacket(dataPacket)
 			break
 		case tftp.TFTPOpcodeTERM:
 			return errors.New("termination packet received"), false
 		case tftp.TFTPOpcodeDATA:
-			//log.Printf("Data packet received: %v\n", dataPacket)
 			lb = c.receiveDataPacket(dataPacket) // handle data packet
 			break
 		default:
@@ -71,15 +68,10 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) bool {
 		c.sendAck(c.nextSeqNum - 1) // Send ACK for previous packet
 		return false
 	}
-	//if dataPack.Checksm != tftp.Checksum(tftp.Xor(dataPack.Data, c.dhke.aes512Key)) {
 	if dataPack.Checksm != tftp.Checksum(dataPack.Data) {
-		// Checksum failed
-		//log.Printf("Calc Checksum: %v\n", tftp.Checksum(dataPack.Data))
-		//log.Printf("Received Checksum: %v\n", dataPack.Checksm)
 		c.sendAck(c.nextSeqNum - 1) // Send ACK for previous packet
 		return false
 	}
-	//log.Printf("\n-----------------\nReceived data packet block number: %d\nFirst 10 Bytes: %v\nLength %d\n-----------------\n", dataPack.BlockNumber, dataPack.Data[0:10], len(dataPack.Data))
 	// Append data to file
 	if !c.appendFileDate(&dataPack) { // Append data to file, if duplicate packet, return false
 		return false

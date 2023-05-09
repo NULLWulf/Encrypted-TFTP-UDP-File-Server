@@ -1,11 +1,11 @@
 package main
 
 import (
+	"CSC445_Assignment2/tftp"
 	_ "crypto/ecdh"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/sha512"
 	"log"
 	"math/big"
 )
@@ -32,7 +32,6 @@ func (d *DHKESession) curveCheck(pubKeyX, pubKeyY *big.Int) bool {
 // generateSharedKey generates the shared key using the public key and the private key
 func (d *DHKESession) generateSharedKey(pubKeyX, pubKeyY *big.Int) ([]byte, error) {
 	curve := elliptic.P256()
-
 	var x, y *big.Int
 	// Generate the shared key until it is not nil
 	for generated := false; !generated; {
@@ -52,23 +51,19 @@ func deriveAESKey256(sharedSecret []byte) []byte {
 	return hash[:]
 }
 
-// Derive the AES key from the shared secret using SHA-512
-func deriveAESKey512(sharedSecret []byte) []byte {
-	hash := sha512.Sum512(sharedSecret)
-	return hash[:]
-}
-
 func DHKETester() []byte {
 	client := new(DHKESession)
 	server := new(DHKESession)
 	client.GenerateKeyPair()
 	server.GenerateKeyPair()
 	key, err := client.generateSharedKey(server.pubKeyX, server.pubKeyY)
+	log.Printf("Client Key Checksum: %d", tftp.Checksum(key))
 	if err != nil {
 		log.Printf("Error: %s", err)
 		return nil
 	}
 	sharedKey, err := server.generateSharedKey(client.pubKeyX, client.pubKeyY)
+	log.Printf("Server Key Checksum: %d", tftp.Checksum(sharedKey))
 	if err != nil {
 		log.Printf("Error: %s", err)
 		return nil
@@ -79,7 +74,7 @@ func DHKETester() []byte {
 		log.Printf("Error: keys are not the same")
 		return nil
 	}
-	log.Printf("Keys are the same: %s", key)
+	log.Printf("Keys are the same, Checksum: %d", tftp.Checksum(key))
 
 	return sharedKey
 

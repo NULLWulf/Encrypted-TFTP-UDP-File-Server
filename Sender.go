@@ -76,15 +76,16 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	var ack tftp.Ack
 	log.Println("Starting sender transfer TFTP loop")
-	packet := make([]byte, 520)                                      //Byte slice "buffer"
+	packet := make([]byte, 1024)                                     //Byte slice "buffer"
 	base, nextSeqNum := 1, 1                                         //Initialize the base, next sequence number, and drop probability
 	tOuts, mDelay, iDelay := 0, 30*time.Second, 500*time.Millisecond //Initialize the timeout counter, max delay, and initial delay
 	delay := iDelay                                                  // set initial to delay to current delay value
 	n, _ := c.conn.Read(packet)                                      //Read the initial ACK
-	c.ADti(n)                                                        // Add to the total bytes received to running outgoing total
-	packet = packet[:n]                                              //Trim the packet to the size of the data received
-	packet = tftp.Xor(packet, c.dhke.aes512Key)                      //XOR the packet with the shared key
-	err := ack.Parse(packet)                                         // Parse the ACK
+	log.Printf("Initial ACK received: %v\n", n)
+	packet = packet[:n] //Trim the packet to the size of the data received
+	//packet = tftp.Xor(packet, c.dhke.aes512Key)                      //XOR the packet with the shared key
+	err := ack.Parse(packet) // Parse the ACK
+	//packet, _ = decrypt(packet, c.dhke.aes512Key)
 	log.Printf("Initial ACK received: %v\n", ack)
 	if err != nil {
 		return errors.New("error parsing ack packet: " + err.Error())
@@ -99,15 +100,17 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	for nextSeqNum < base+WindowSize && nextSeqNum <= len(c.dataBlocks) {
 		packet = c.dataBlocks[nextSeqNum-1].ToBytes() //Get the data block and convert it to a byte sliceft
 		//log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
-		packet = tftp.Xor(packet, c.dhke.aes512Key) //XOR the packet with the shared key
-		n, err = c.conn.WriteToUDP(packet, addr)    //Send the data block
-		c.ADto(n)                                   // Add to the total bytes sent to running outgoing total
+		//packet = tftp.Xor(packet, c.dhke.aes512Key) //XOR the packet with the shared key
+		packet, _ = encrypt(packet, c.dhke.aes512Key)
+		n, err = c.conn.WriteToUDP(packet, addr) //Send the data block
+		c.ADto(n)                                // Add to the total bytes sent to running outgoing total
 		//log.Printf("Sending packet %d, %v", nextSeqNum, len(packet))
-		nextSeqNum++                                           //Increment the next sequence number
-		packet = make([]byte, 520)                             //Reset the packet byte slice
-		n, _ = c.conn.Read(packet)                             //Read the ACK
-		packet = packet[:n]                                    //Trim the packet to the size of the data received
-		packet = tftp.Xor(packet, c.dhke.aes512Key)            //XOR the packet with the shared key
+		nextSeqNum++ //Increment the next sequence number
+		//packet = make([]byte, 1024)                            //Reset the packet byte slice
+		n, _ = c.conn.Read(packet) //Read the ACK
+		packet = packet[:n]        //Trim the packet to the size of the data received
+		//packet = tftp.Xor(packet, c.dhke.aes512Key)            //XOR the packet with the shared key
+		packet, _ = decrypt(packet, c.dhke.aes512Key)
 		c.ADti(n)                                              // Add to the total bytes received to running outgoing total
 		if nErr, ok := err.(net.Error); ok && nErr.Timeout() { //Check if the error is a timeout error
 			log.Printf("Timeout, resending unacknowledged packets\n") //If it is a timeout error, log it and increment the timeout counter

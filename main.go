@@ -6,6 +6,7 @@ import (
 
 func main() {
 	// Parse the command line arguments
+	AESTester()
 	parseProgramArguments()
 	// Run the application in the specified mode
 
