@@ -13,15 +13,18 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 	conn := *cn
 	log.Printf("Starting Receiver TFTP Transfer Loop\n")
 	c.receivedPackets = make(map[uint16]*tftp.Data)
-	dataPacket := make([]byte, 520)
+	dataPacket := make([]byte, 1024)
 	//n := 0           // number of bytes read
 	err = error(nil) // placeholder to avoid shadowing
 	lb := false      // last data block received
 	c.nextSeqNum = 0 // settings to 0 for first data packet
 	ack := tftp.NewAck(c.nextSeqNum)
 	log.Printf("Sending initial ACK packet: %v\n", ack)
-	c.nextSeqNum++                                                 // increment for first data packet
-	_, err = conn.Write(tftp.Xor(ack.ToBytes(), c.dhke.aes512Key)) //send initial ACK packet
+	c.nextSeqNum++ // increment for first data packet
+	//_, err = conn.Write(tftp.Xor(ack.ToBytes(), c.dhke.aes512Key)) //send initial ACK packet
+	packet, _ := encrypt(ack.ToBytes(), c.dhke.aes512Key)
+	_, err = conn.Write(packet)
+
 	if err != nil {
 		c.sendAbort()
 		return errors.New("error sending initial ACK packet: " + err.Error()), false
@@ -30,7 +33,8 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 		n, err := conn.Read(dataPacket)
 		c.ADti(n)                   // add bytes to incoming data running data
 		dataPacket = dataPacket[:n] // trim packet to size of data
-		dataPacket = tftp.Xor(dataPacket, c.dhke.aes512Key)
+		//dataPacket = tftp.Xor(dataPacket, c.dhke.aes512Key)
+		dataPacket, _ = decrypt(dataPacket, c.dhke.aes512Key)
 		opcode := binary.BigEndian.Uint16(dataPacket[:2])
 		switch tftp.TFTPOpcode(opcode) {
 		case tftp.TFTPOpcodeERROR:
@@ -61,13 +65,14 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 // note that this function needs a key to decrypt the data
 func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) bool {
 	var dataPack tftp.Data
-	err := dataPack.Parse(dataPacket, c.dhke.aes512Key)
+	err := dataPack.Parse(dataPacket, nil)
 	if err != nil || dataPack.BlockNumber != c.nextSeqNum {
 		// Duplicate packet or out of order packet
 		c.sendAck(c.nextSeqNum - 1) // Send ACK for previous packet
 		return false
 	}
-	if dataPack.Checksm != tftp.Checksum(tftp.Xor(dataPack.Data, c.dhke.aes512Key)) {
+	//if dataPack.Checksm != tftp.Checksum(tftp.Xor(dataPack.Data, c.dhke.aes512Key)) {
+	if dataPack.Checksm != tftp.Checksum(dataPack.Data) {
 		// Checksum failed
 		//log.Printf("Calc Checksum: %v\n", tftp.Checksum(dataPack.Data))
 		//log.Printf("Received Checksum: %v\n", dataPack.Checksm)

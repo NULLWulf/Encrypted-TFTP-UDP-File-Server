@@ -2,18 +2,9 @@ package main
 
 import (
 	"log"
-	"os"
 )
 
 func main() {
-	AESTester()
-	os.Exit(0)
-	//for i := 0; i < 100; i++ {
-	//	DHKETester()
-	//}
-
-	//TestRetrievingFile()
-	//os.Exit(0)
 	// Parse the command line arguments
 	parseProgramArguments()
 	// Run the application in the specified mode
