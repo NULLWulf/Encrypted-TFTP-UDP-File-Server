@@ -54,7 +54,6 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 			return nil, true
 		}
 	}
-
 }
 
 // receiveDataPacket handles a data packet and returns true if the last data

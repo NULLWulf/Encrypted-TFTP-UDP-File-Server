@@ -41,7 +41,7 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py) // Generate the shared key
 	if err != nil {
 		log.Printf("Error generating shared key: %v\n", err.Error())
-		c.sendError(11, "Error generating shared key")
+		c.sendErrorClient(11, "Error generating shared key", addr)
 		return
 	}
 	c.SetProtocolOptions(req.Options, 0) //Set the protocol options
@@ -56,19 +56,18 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 	//c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.dhke.sharedKey) //Prepare the data blocks
 	c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.dhke.aes512Key) //Prepare the data blocks
 	if err != nil {
-		c.sendError(5, "Error preparing data blocks")
+		c.sendErrorClient(5, "Error preparing data blocks", addr)
 		return
 	}
-	n, err := c.conn.WriteToUDP(opAck2.ToBytes(), addr) //Send the OACK
-	c.ADto(n)
+	_, err = c.conn.WriteToUDP(opAck2.ToBytes(), addr) //Send the OACK
 	if err != nil {
-		c.sendError(5, "Error sending OACK")
+		c.sendErrorClient(6, "Error writing to UDP", addr)
 		return
 	}
 	err = c.sender(addr)
-
 	if err != nil {
-		c.sendError(5, "Illegal TFTP operation")
+		log.Printf("Error sending file: %v\n", err.Error())
+		c.sendErrorClient(5, "Error sending file", addr)
 		return
 	}
 }

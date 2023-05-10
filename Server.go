@@ -28,27 +28,6 @@ func RunServerMode() {
 	select {}
 }
 
-// handleConnectipnUDP handles a single udp "connection"
-func (c *TFTPProtocol) handleConnectionsUDP() {
-	buf := make([]byte, 516)
-	//go func() {
-	for {
-		// read message
-		n, raddr, err := c.conn.ReadFromUDP(buf)
-		if err != nil {
-			log.Println("Error reading message:", err)
-			continue
-		}
-		// decode message
-		msg := buf[:n]
-		c.handleRequest(raddr, msg)
-		// close connection
-		if err != nil {
-			log.Printf("Error closing connection: %s\n", err)
-		}
-	}
-}
-
 func (c *TFTPProtocol) handleConnectionsUDP2() {
 	buf := make([]byte, 516)
 	for {
@@ -58,10 +37,8 @@ func (c *TFTPProtocol) handleConnectionsUDP2() {
 			log.Println("Error reading message:", err)
 			continue
 		}
-
 		// decode message
 		msg := buf[:n]
-
 		c.handleRequestWithRecovery(raddr, msg)
 	}
 }
@@ -72,7 +49,6 @@ func (c *TFTPProtocol) handleRequestWithRecovery(raddr *net.UDPAddr, msg []byte)
 			log.Println("Recovered from panic:", r)
 		}
 	}()
-
 	c.handleRequest(raddr, msg)
 	return
 	//return nil

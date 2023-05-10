@@ -59,9 +59,7 @@ func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTim
 		log.Printf("Error in preDataTransfer: %s\n", err)
 		return err, nil, 0
 	}
-	data = c.rebuildData()    // rebuilds the data from the data packets received
-	c.DisplayStats(len(data)) // displays the stats regarding the transfer
-
+	data = c.rebuildData() // rebuilds the data from the data packets received
 	return nil, data, 0
 }
 
@@ -80,13 +78,10 @@ func (c *TFTPProtocol) preDataTransfer() error {
 		log.Printf("Error packet received: %s\n", packet)
 		var errPack tftp.Error
 		err = errPack.Parse(packet)
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf("error code %d: %s", errPack.ErrorCode, errPack.ErrorMessage)
+		panic("Received Error Packet When Expecting OACK, assumed key exchange failed")
 	case tftp.TFTPOpcodeTERM:
 		log.Printf("Received Termination packet from server: %s\n", c.conn.RemoteAddr().String())
-		return fmt.Errorf("server terminated connection")
+		panic("Received Termination Packet When Expecting OACK, assumed key exchange failed")
 	case tftp.TFTPOpcodeOACK:
 		log.Printf("Received oack from server: %s\n", c.conn.RemoteAddr().String())
 		var oackPack tftp.OptionAcknowledgement
@@ -97,7 +92,7 @@ func (c *TFTPProtocol) preDataTransfer() error {
 		c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py)
 		if err != nil {
 			log.Printf("Error generating shared key: %v. Retrying", err.Error())
-			return err
+			c.sendError(0, "Error generating shared key")
 		}
 		log.Printf("Shared Key: %d\n", crc32.ChecksumIEEE(c.dhke.sharedKey))
 		if err != nil {

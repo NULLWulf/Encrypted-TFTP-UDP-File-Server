@@ -23,6 +23,10 @@ type DHKESession struct {
 func (d *DHKESession) GenerateKeyPair() {
 	curve := elliptic.P256()
 	d.privateKey, d.pubKeyX, d.pubKeyY, _ = elliptic.GenerateKey(curve, rand.Reader)
+	for !d.curveCheck(d.pubKeyX, d.pubKeyY) {
+		log.Printf("Keys are not on the curve, generating new keys")
+		d.privateKey, d.pubKeyX, d.pubKeyY, _ = elliptic.GenerateKey(curve, rand.Reader)
+	}
 }
 
 func (d *DHKESession) curveCheck(pubKeyX, pubKeyY *big.Int) bool {

@@ -45,7 +45,6 @@ func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
 		c.windowSize = binary.BigEndian.Uint16(options["windowsize"])
 	}
 	if options["key"] != nil {
-		log.Printf("Key: %s\n", options["key"])
 		c.key = options["key"]
 	}
 	if options["keyy"] != nil {
@@ -67,12 +66,21 @@ func (c *TFTPProtocol) SetProtocolOptions(options map[string][]byte, l int) {
 func (c *TFTPProtocol) sendError(errCode uint16, errMsg string) {
 	log.Printf("Sending error packet: %d %s\n", errCode, errMsg)
 	errPack := tftp.NewErr(errCode, []byte(errMsg))
-	n, err := c.conn.Write(errPack.ToBytes())
+	_, err := c.conn.Write(errPack.ToBytes())
 	if err != nil {
 		log.Println("Error sending error packet:", err)
 		return
 	}
-	c.ADto(n)
+}
+
+func (c *TFTPProtocol) sendErrorClient(errCode uint16, errMsg string, raddr *net.UDPAddr) {
+	log.Printf("Sending error packet: %d %s\n", errCode, errMsg)
+	errPack := tftp.NewErr(errCode, []byte(errMsg))
+	_, err := c.conn.WriteToUDP(errPack.ToBytes(), raddr)
+	if err != nil {
+		log.Println("Error sending error packet:", err)
+		return
+	}
 }
 
 func (c *TFTPProtocol) sendAbort() {
