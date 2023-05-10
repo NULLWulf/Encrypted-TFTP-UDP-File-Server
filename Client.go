@@ -39,6 +39,13 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 // RequestFile method sends a request packet to the server and begins the transfer process
 // / and returns the data
 func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTime float64) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Panic recovered in RequestFile: %v", r)
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
+	log.Printf("Starting RequestFile\n")
 	options := make(map[string][]byte)
 	c.dhke = new(DHKESession)                // Make a new DHKE session
 	c.dhke.GenerateKeyPair()                 // Generate the key pair
@@ -78,6 +85,7 @@ func (c *TFTPProtocol) preDataTransfer() error {
 		log.Printf("Error packet received: %s\n", packet)
 		var errPack tftp.Error
 		err = errPack.Parse(packet)
+		// Sleep for 1 second to allow the server to close the connection
 		panic("Received Error Packet When Expecting OACK, assumed key exchange failed")
 	case tftp.TFTPOpcodeTERM:
 		log.Printf("Received Termination packet from server: %s\n", c.conn.RemoteAddr().String())
@@ -86,6 +94,9 @@ func (c *TFTPProtocol) preDataTransfer() error {
 		log.Printf("Received oack from server: %s\n", c.conn.RemoteAddr().String())
 		var oackPack tftp.OptionAcknowledgement
 		err = oackPack.Parse(packet)
+		if err != nil {
+			panic("Error parsing OACK packet")
+		}
 		px, py := new(big.Int), new(big.Int)
 		px.SetBytes(oackPack.KeyX)
 		py.SetBytes(oackPack.KeyY)
@@ -93,11 +104,10 @@ func (c *TFTPProtocol) preDataTransfer() error {
 		if err != nil {
 			log.Printf("Error generating shared key: %v. Retrying", err.Error())
 			c.sendError(0, "Error generating shared key")
+			panic("Error generating shared key")
 		}
 		log.Printf("Shared Key: %d\n", crc32.ChecksumIEEE(c.dhke.sharedKey))
-		if err != nil {
-			return fmt.Errorf("error parsing OACK packet: %s", err)
-		}
+
 		err, _ = c.TftpClientTransferLoop(c.conn) // starts the transfer loop, returns error and bool
 		// signifying if the transfer is complete or not, and error would terminate the transfer
 		if err != nil {

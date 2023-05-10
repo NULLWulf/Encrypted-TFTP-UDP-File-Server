@@ -25,7 +25,9 @@ func (d *Data) ToBytes() []byte {
 
 	// Return the data packet
 	return packet
-}
+} //data = Xor(data, xorKey)
+//data = data
+// Calculate the checksum
 
 // Parse method parses a byte array into a TFTPData struct
 func (d *Data) Parse(packet []byte, xorKey []byte) error {
@@ -37,7 +39,6 @@ func (d *Data) Parse(packet []byte, xorKey []byte) error {
 	// Parse the block number, checksum, and data
 	blockNumber := binary.BigEndian.Uint16(packet[2:4])
 	checksum := binary.BigEndian.Uint32(packet[4:8])
-	//data := Xor(packet[8:], xorKey)
 	data := packet[8:]
 
 	d.Opcode = TFTPOpcodeDATA
@@ -55,9 +56,6 @@ func NewData(blockNumber uint16, data []byte, xorKey []byte) (*Data, error) {
 		return nil, errors.New("data is empty")
 	}
 
-	//data = Xor(data, xorKey)
-	//data = data
-	// Calculate the checksum
 	checksum := crc32.ChecksumIEEE(data)
 
 	// Construct and return the TFTPData struct
