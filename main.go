@@ -5,10 +5,8 @@ import (
 )
 
 func main() {
-	// Parse the command line arguments
-	//AESTester()
+	//go AESTester()
 	parseProgramArguments()
-	// Run the application in the specified mode
 
 	switch Mode {
 	case "server":

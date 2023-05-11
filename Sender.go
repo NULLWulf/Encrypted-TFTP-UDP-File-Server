@@ -25,16 +25,14 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		return
 	}
 	log.Printf("Received %d bytes from %s for file %s \n", len(buf), addr.String(), string(req.Filename))
-	//err, img := IQ.AddNewAndReturnImg(string(req.Filename)) //Add the image to the image queue
 	file, err := ProxyRequest(string(req.Filename))
 
 	if err != nil {
 		c.sendError(5, "File not found")
 		return
 	}
-	c.dhke = new(DHKESession) // Create a new DHKE session
-	c.dhke.GenerateKeyPair()  // Generate a new key pair for server
-	// get bytes conver to big int
+	c.dhke = new(DHKESession)                                // Create a new DHKE session
+	c.dhke.GenerateKeyPair()                                 // Generate a new key pair for server
 	px, py := new(big.Int), new(big.Int)                     // Create new big ints to hold clients public keys
 	px.SetBytes(req.Options["keyx"])                         // Set the big ints to the clients public keys
 	py.SetBytes(req.Options["keyy"])                         // Set the big ints to the clients public keys
@@ -53,17 +51,18 @@ func (c *TFTPProtocol) handleRRQ(addr *net.UDPAddr, buf []byte) {
 		KeyY:   c.dhke.pubKeyY.Bytes(),
 	}
 
-	//c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.dhke.sharedKey) //Prepare the data blocks
-	c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.dhke.aes512Key) //Prepare the data blocks
-	if err != nil {
-		c.sendErrorClient(5, "Error preparing data blocks", addr)
-		return
-	}
 	_, err = c.conn.WriteToUDP(opAck2.ToBytes(), addr) //Send the OACK
 	if err != nil {
 		c.sendErrorClient(6, "Error writing to UDP", addr)
 		return
 	}
+
+	c.dataBlocks, err = PrepareData(file, int(c.blockSize), c.dhke.aes512Key) //Prepare the data blocks
+	if err != nil {
+		c.sendErrorClient(5, "Error preparing data blocks", addr)
+		return
+	}
+
 	err = c.sender(addr)
 	if err != nil {
 		log.Printf("Error sending file: %v\n", err.Error())
@@ -85,10 +84,8 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	delay := iDelay                                                  // set initial to delay to current delay value
 	n, _ := c.conn.Read(packet)                                      //Read the initial ACK
 	log.Printf("Initial ACK received: %v\n", n)
-	packet = packet[:n] //Trim the packet to the size of the data received
-	//packet = tftp.Xor(packet, c.dhke.aes512Key)                      //XOR the packet with the shared key
+	packet = packet[:n]      //Trim the packet to the size of the data received
 	err := ack.Parse(packet) // Parse the ACK
-	//packet, _ = decrypt(packet, c.dhke.aes512Key)
 	log.Printf("Initial ACK received: %v\n", ack)
 	if err != nil {
 		return errors.New("error parsing ack packet: " + err.Error())
@@ -101,14 +98,17 @@ func (c *TFTPProtocol) sender(addr *net.UDPAddr) error {
 	// Loop until all data blocks have been sent and acknowledged
 	// Send packets within the window size
 	for nextSeqNum < base+WindowSize && nextSeqNum <= len(c.dataBlocks) {
-		packet = c.dataBlocks[nextSeqNum-1].ToBytes() //Get the data block and convert it to a byte sliceft
-		packet, _ = encrypt(packet, c.dhke.aes512Key)
-		n, err = c.conn.WriteToUDP(packet, addr) //Send the data block
-		c.ADto(n)                                // Add to the total bytes sent to running outgoing total
-		nextSeqNum++                             //Increment the next sequence number
-		n, _ = c.conn.Read(packet)               //Read the ACK
-		packet = packet[:n]                      //Trim the packet to the size of the data received
-		packet, _ = decrypt(packet, c.dhke.aes512Key)
+		//Encrypt the packet
+		packet, _ = encrypt(c.dataBlocks[nextSeqNum-1].ToBytes(), c.dhke.aes512Key)
+		//Send the data block
+		go c.conn.WriteToUDP(packet, addr)
+		//Increment the next sequence number
+		nextSeqNum++
+		//Read the ACK
+		n, _ = c.conn.Read(packet)
+		//Decrypt the ack packet
+		packet, _ = decrypt(packet[:n], c.dhke.aes512Key)
+
 		if nErr, ok := err.(net.Error); ok && nErr.Timeout() { //Check if the error is a timeout error
 			log.Printf("Timeout, resending unacknowledged packets\n") //If it is a timeout error, log it and increment the timeout counter
 			tOuts++                                                   //Increment the timeout counter

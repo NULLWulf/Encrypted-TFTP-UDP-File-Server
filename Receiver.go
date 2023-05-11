@@ -30,19 +30,17 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 	for { // loop until packet received
 		dataPacket = make([]byte, 1024) // reset data packet
 		n, err := conn.Read(dataPacket)
-		c.ADti(n)                   // add bytes to incoming data running data
-		dataPacket = dataPacket[:n] // trim packet to size of data
-		dataPacket, _ = decrypt(dataPacket, c.dhke.aes512Key)
+		dataPacket, _ = decrypt(dataPacket[:n], c.dhke.aes512Key)
+
 		opcode := binary.BigEndian.Uint16(dataPacket[:2])
+
 		switch tftp.TFTPOpcode(opcode) {
 		case tftp.TFTPOpcodeERROR:
 			c.handleErrPacket(dataPacket)
-			break
 		case tftp.TFTPOpcodeTERM:
 			return errors.New("termination packet received"), false
 		case tftp.TFTPOpcodeDATA:
 			lb = c.receiveDataPacket(dataPacket) // handle data packet
-			break
 		default:
 			if err != nil {
 				return errors.New("error reading packet: " + err.Error()), false

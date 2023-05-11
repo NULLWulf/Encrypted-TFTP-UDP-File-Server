@@ -8,7 +8,6 @@ import (
 	"hash/crc32"
 	"io"
 	"log"
-	"os"
 )
 
 func encrypt(plaintext []byte, key []byte) ([]byte, error) {
@@ -18,22 +17,23 @@ func encrypt(plaintext []byte, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Create a new GCM
+	// Create a new Galois Counter Mode with the block cipher
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create a nonce. Nonce should be from GCM
+	// Create a nonce. Never use more than 2^32 random nonces with a given key
+	// because of the risk of a repeat.
 	nonce := make([]byte, aesGCM.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
 	}
 
-	// Encrypt the plaintext using aesGCM.Seal
-	// Since we don't want to save the nonce somewhere else in this case, we add it as a prefix to the encrypted data. The first nonce argument in Seal is the prefix.
+	// Encrypt the data using AES-GCM
 	ciphertext := aesGCM.Seal(nonce, nonce, plaintext, nil)
 
+	// Return the ciphertext
 	return ciphertext, nil
 }
 
@@ -44,7 +44,7 @@ func decrypt(ciphertext []byte, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Create a new GCM
+	// Create a new Galois Counter Mode with the block cipher
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func decrypt(ciphertext []byte, key []byte) ([]byte, error) {
 	// Get the nonce size
 	nonceSize := aesGCM.NonceSize()
 
-	// Extract the nonce from the encrypted data
+	// Split the ciphertext into the nonce and the encrypted data
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
 
 	// Decrypt the data
@@ -62,49 +62,38 @@ func decrypt(ciphertext []byte, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	// Return the plaintext
 	return plaintext, nil
 }
 
 func AESTester() {
-	sharedKey := DHKETester()
-	AES := deriveAESKey256(sharedKey)
+	sharedKey := DHKETester()         // Generate a shared key
+	AES := deriveAESKey256(sharedKey) // Derive a 256-bit AES key from the shared key
 
-	img, err := ProxyRequest("https://rare-gallery.com/uploads/posts/577429-star-wars-high.jpg")
-	blocks, err := PrepareData(img, 512, AES)
+	img, _ := ProxyRequest("someimage.jpg") // Get the image via HTTP
+
+	blocks, _ := PrepareData(img, 512, AES) // Prepare the data for encryption
 	log.Printf("Number of blocks: %d\n", len(blocks))
-	if err != nil {
-		log.Printf("Error preparing data: %s\n", err.Error())
-	}
+
+	// Make a new slice of byte slices to hold the encrypted blocks
 	encrypted := make([][]byte, len(blocks))
 	for i, block := range blocks {
-		encrypted[i], err = encrypt(block.ToBytes(), AES)
-		if err != nil {
-			log.Printf("Error encrypting block: %s\n", err.Error())
-		}
-	}
-	decrypted := make([][]byte, len(blocks))
-	for i, block := range encrypted {
-		decrypted[i], err = decrypt(block, AES)
-		if err != nil {
-			log.Printf("Error decrypting block: %s\n", err.Error())
-		}
+		// Encrypt each block passed in the AES key
+		encrypted[i], _ = encrypt(block.ToBytes(), AES)
 	}
 
-	data := new(tftp.Data)
-	dataPacks := make([]*tftp.Data, len(blocks))
-	reformed := make([]byte, 0)
-	for i, block := range decrypted {
-		err := data.Parse(block, nil)
-		if err != nil {
-			return
-		}
-		dataPacks[i] = data
-		reformed = append(reformed, data.Data...)
+	data := new(tftp.Data)      // Create a new data packet
+	reformed := make([]byte, 0) // Create a new byte slice to hold the reformed image
+	for _, block := range encrypted {
+		pt, _ := decrypt(block, AES)              // Decrypt the block
+		data.Parse(pt, nil)                       // Parse the decrypted block into a data packet
+		reformed = append(reformed, data.Data...) // Append the data to the reformed image
 	}
 
-	// Check to see if reformed and img are the same
-	if crc32.ChecksumIEEE(reformed) == crc32.ChecksumIEEE(img) {
-		log.Printf("Reformed and original are the same! Checksum: %d\n", crc32.ChecksumIEEE(reformed))
+	// Check to see if reformed image and image are the same
+	if crc32.ChecksumIEEE(reformed) != crc32.ChecksumIEEE(img) {
+		log.Fatalf("Reformed and original are not the same!")
 	}
-	os.WriteFile("test-reformed.jpg", reformed, 0644)
+	log.Printf("Reformed and original are the same! Checksum: %d\n", crc32.ChecksumIEEE(reformed))
+	log.Fatal("Bye!")
 }

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 // Mutex to lock thread
@@ -26,7 +27,6 @@ func RunClientMode() {
 func homepage(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	log.Println("Serving homepage")
 	http.ServeFile(w, r, "./html/index.html")
-	return
 }
 
 func getImage2(w http.ResponseWriter, r *http.Request, p httprouter.Params) {

@@ -4,6 +4,7 @@ import (
 	"CSC445_Assignment2/tftp"
 	"encoding/binary"
 	"log"
+	"math/rand"
 	"net"
 )
 
@@ -15,6 +16,17 @@ func NewTFTPServer() (*TFTPProtocol, error) {
 		return nil, err
 	}
 	return &TFTPProtocol{conn: conn, raddr: addr}, nil
+}
+func NewTFTPServer2() (*TFTPProtocol, error, int) {
+	// Random port
+	port := rand.Intn(65535)
+	addr := &net.UDPAddr{IP: net.IPv4zero, Port: port}
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		log.Println("Error starting server:", err)
+		return nil, err, 0
+	}
+	return &TFTPProtocol{conn: conn, raddr: addr}, nil, port
 }
 
 func RunServerMode() {
@@ -50,8 +62,6 @@ func (c *TFTPProtocol) handleRequestWithRecovery(raddr *net.UDPAddr, msg []byte)
 		}
 	}()
 	c.handleRequest(raddr, msg)
-	return
-	//return nil
 }
 
 func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
@@ -59,7 +69,6 @@ func (c *TFTPProtocol) handleRequest(addr *net.UDPAddr, buf []byte) {
 	switch tftp.TFTPOpcode(code) {
 	case tftp.TFTPOpcodeRRQ:
 		c.handleRRQ(addr, buf)
-		break
 	case tftp.TFTPOpcodeWRQ:
 		// send error packet
 		c.sendError(11, "Write requests are not supported at this time")

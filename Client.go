@@ -39,23 +39,27 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 // RequestFile method sends a request packet to the server and begins the transfer process
 // / and returns the data
 func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTime float64) {
-	defer func() {
+	defer func() { // recover from panic in case of key generation failure
 		if r := recover(); r != nil {
 			log.Printf("Panic recovered in RequestFile: %v", r)
 			err = fmt.Errorf("panic: %v", r)
 		}
 	}()
 	log.Printf("Starting RequestFile\n")
-	options := make(map[string][]byte)
-	c.dhke = new(DHKESession)                // Make a new DHKE session
-	c.dhke.GenerateKeyPair()                 // Generate the key pair
+
+	c.dhke = new(DHKESession) // Make a new DHKE session
+	c.dhke.GenerateKeyPair()  // Generate the key pair
+
+	options := make(map[string][]byte)       // create a map for the options
 	options["keyx"] = c.dhke.pubKeyX.Bytes() // set the x public key to the map
 	options["keyy"] = c.dhke.pubKeyY.Bytes() // set the y public key to the map
+
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, options)
 	packet, _ := reqPack.ToBytes()
+
 	c.SetProtocolOptions(options, 0) // sets the protocol options
-	n, err := c.conn.Write(packet)   // sends the request packet
-	c.ADto(n)                        // adds the number of bytes sent to the total bytes sent running total
+	_, err = c.conn.Write(packet)    // sends the request packet
+
 	if err != nil {
 		log.Printf("Error sending request packet: %s\n", err)
 		return err, nil, 0
@@ -90,19 +94,20 @@ func (c *TFTPProtocol) preDataTransfer() error {
 	case tftp.TFTPOpcodeTERM:
 		log.Printf("Received Termination packet from server: %s\n", c.conn.RemoteAddr().String())
 		panic("Received Termination Packet When Expecting OACK, assumed key exchange failed")
+
 	case tftp.TFTPOpcodeOACK:
 		log.Printf("Received oack from server: %s\n", c.conn.RemoteAddr().String())
-		var oackPack tftp.OptionAcknowledgement
-		err = oackPack.Parse(packet)
+		oackPack := new(tftp.OptionAcknowledgement)
+		err = oackPack.Parse(packet) // parse the optins packet which contains the server key pair
 		if err != nil {
+			c.sendError(0, "Error parsing OACK packet")
 			panic("Error parsing OACK packet")
 		}
-		px, py := new(big.Int), new(big.Int)
-		px.SetBytes(oackPack.KeyX)
+		px, py := new(big.Int), new(big.Int) // create new big ints for the x and y values
+		px.SetBytes(oackPack.KeyX)           // convert x,y values into Big Ints
 		py.SetBytes(oackPack.KeyY)
-		c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py)
-		if err != nil {
-			log.Printf("Error generating shared key: %v. Retrying", err.Error())
+		c.dhke.sharedKey, err = c.dhke.generateSharedKey(px, py) // generate the shared key
+		if err != nil {                                          // if there is an error, send an error packet and panic
 			c.sendError(0, "Error generating shared key")
 			panic("Error generating shared key")
 		}
