@@ -49,7 +49,7 @@ func (iq *ImageQueueObj) AddNewAndReturnImg(url string) (err error, img []byte) 
 	return
 }
 
-// requestImage makes a GET request to the specified URL and returns the image data
+// RequestImage makes a GET request to the specified URL and returns the image data
 func (iq *ImageQueueObj) requestImage(url string) (img []byte, err error) {
 	// Make a GET request to the image URL
 	var resp *http.Response
@@ -58,11 +58,11 @@ func (iq *ImageQueueObj) requestImage(url string) (img []byte, err error) {
 		return nil, err
 	}
 	defer func(Body io.ReadCloser) error {
-		erro := Body.Close()
-		if erro != nil {
-			return erro
+		err := Body.Close()
+		if err != nil {
+			return err
 		}
-		return erro
+		return err
 	}(resp.Body)
 
 	// Read the image data into a byte slice
@@ -81,11 +81,11 @@ func ProxyRequest(url string) (file []byte, err error) {
 		return nil, err
 	}
 	defer func(Body io.ReadCloser) error {
-		erro := Body.Close()
-		if erro != nil {
-			return erro
+		err := Body.Close()
+		if err != nil {
+			return err
 		}
-		return erro
+		return err
 	}(resp.Body)
 
 	// Read the image data into a byte slice

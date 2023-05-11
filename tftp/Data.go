@@ -10,7 +10,7 @@ import (
 type Data struct {
 	Opcode      TFTPOpcode
 	BlockNumber uint16
-	Checksm     uint32
+	Checksum    uint32
 	Data        []byte
 }
 
@@ -20,7 +20,7 @@ func (d *Data) ToBytes() []byte {
 	packet := make([]byte, 2+2+4+len(d.Data))
 	binary.BigEndian.PutUint16(packet[:2], uint16(TFTPOpcodeDATA))
 	binary.BigEndian.PutUint16(packet[2:4], d.BlockNumber)
-	binary.BigEndian.PutUint32(packet[4:8], d.Checksm)
+	binary.BigEndian.PutUint32(packet[4:8], d.Checksum)
 	copy(packet[8:], d.Data)
 
 	// Return the data packet
@@ -43,7 +43,7 @@ func (d *Data) Parse(packet []byte, xorKey []byte) error {
 
 	d.Opcode = TFTPOpcodeDATA
 	d.BlockNumber = blockNumber
-	d.Checksm = checksum
+	d.Checksum = checksum
 	d.Data = data
 
 	return nil
@@ -62,7 +62,7 @@ func NewData(blockNumber uint16, data []byte, xorKey []byte) (*Data, error) {
 	dataPacket := &Data{
 		Opcode:      TFTPOpcodeDATA,
 		BlockNumber: blockNumber,
-		Checksm:     checksum,
+		Checksum:    checksum,
 		Data:        data,
 	}
 	return dataPacket, nil

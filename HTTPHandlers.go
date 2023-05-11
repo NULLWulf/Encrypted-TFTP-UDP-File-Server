@@ -43,7 +43,7 @@ func getImage2(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 
 	var img []byte
 	func() {
-		err, img, _ = client.RequestFile(imageUrl) // request the file via url
+		img, _, err = client.RequestFile(imageUrl) // request the file via url
 		if err != nil {
 			log.Printf("Error Requesting File over TFTP: %s\n", err)
 		}

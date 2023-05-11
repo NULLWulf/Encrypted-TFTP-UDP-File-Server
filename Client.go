@@ -1,14 +1,3 @@
-// StartImgReqTFTP Starts image request over UDP taking in parameters needing to create
-// initial Read Request TFTP packet.
-// 1) Attempt to resolve host address
-// 2) Dial host address tion
-// 3) Create request packet
-// 4) Send Request Packet
-// 5) Wait for OACK Packet
-// if error packet, returns error code and message from packet
-// if not expected packet, Returns received opcode
-// and closes the
-// 6) Begin Sliding Window Protocol of Data
 package main
 
 import (
@@ -22,7 +11,6 @@ import (
 )
 
 // NewTFTPClient method constructs a new TFTPProtocol struct
-// TODO - add in a parameter for the port number and address
 func NewTFTPClient() (*TFTPProtocol, error) {
 	remoteAddr, err := net.ResolveUDPAddr("udp", Address)
 	if err != nil {
@@ -37,9 +25,8 @@ func NewTFTPClient() (*TFTPProtocol, error) {
 }
 
 // RequestFile method sends a request packet to the server and begins the transfer process
-// / and returns the data
-func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTime float64) {
-	defer func() { // recover from panic in case of key generation failure
+func (c *TFTPProtocol) RequestFile(url string) (data []byte, transTime float64, err error) {
+	defer func() { // Recover from panic in case of key generation failure
 		if r := recover(); r != nil {
 			log.Printf("Panic recovered in RequestFile: %v", r)
 			err = fmt.Errorf("panic: %v", r)
@@ -50,31 +37,31 @@ func (c *TFTPProtocol) RequestFile(url string) (err error, data []byte, transTim
 	c.dhke = new(DHKESession) // Make a new DHKE session
 	c.dhke.GenerateKeyPair()  // Generate the key pair
 
-	options := make(map[string][]byte)       // create a map for the options
-	options["keyx"] = c.dhke.pubKeyX.Bytes() // set the x public key to the map
-	options["keyy"] = c.dhke.pubKeyY.Bytes() // set the y public key to the map
+	options := make(map[string][]byte)       // Create a map for the options
+	options["keyx"] = c.dhke.pubKeyX.Bytes() // Set the x public key to the map
+	options["keyy"] = c.dhke.pubKeyY.Bytes() // Set the y public key to the map
 
 	reqPack, _ := tftp.NewReq([]byte(url), []byte("octet"), 0, options)
 	packet, _ := reqPack.ToBytes()
 
-	c.SetProtocolOptions(options, 0) // sets the protocol options
-	_, err = c.conn.Write(packet)    // sends the request packet
+	c.SetProtocolOptions(options, 0) // Sets the protocol options
+	_, err = c.conn.Write(packet)    // Sends the request packet
 
 	if err != nil {
 		log.Printf("Error sending request packet: %s\n", err)
-		return err, nil, 0
+		return nil, 0, err
 	}
-	err = c.preDataTransfer() // starts the transfer process
-	c.EndTime()               // ends the timer
+	err = c.preDataTransfer() // Starts the transfer process
+	c.EndTime()               // Ends the timer
 	if err != nil {
 		log.Printf("Error in preDataTransfer: %s\n", err)
-		return err, nil, 0
+		return nil, 0, err
 	}
-	data = c.rebuildData() // rebuilds the data from the data packets received
-	return nil, data, 0
+	data = c.rebuildData() // Rebuilds the data from the data packets received
+	return data, 0, nil
 }
 
-// preDataTransfer method handles the OACK packet and any error packets
+// PreDataTransfer method handles the OACK packet and any error packets
 func (c *TFTPProtocol) preDataTransfer() error {
 	packet := make([]byte, 1024)
 	err := error(nil)
@@ -88,7 +75,7 @@ func (c *TFTPProtocol) preDataTransfer() error {
 	case tftp.TFTPOpcodeERROR:
 		log.Printf("Error packet received: %s\n", packet)
 		var errPack tftp.Error
-		err = errPack.Parse(packet)
+		errPack.Parse(packet)
 		// Sleep for 1 second to allow the server to close the connection
 		panic("Received Error Packet When Expecting OACK, assumed key exchange failed")
 	case tftp.TFTPOpcodeTERM:
@@ -98,7 +85,7 @@ func (c *TFTPProtocol) preDataTransfer() error {
 	case tftp.TFTPOpcodeOACK:
 		log.Printf("Received oack from server: %s\n", c.conn.RemoteAddr().String())
 		oackPack := new(tftp.OptionAcknowledgement)
-		err = oackPack.Parse(packet) // parse the optins packet which contains the server key pair
+		err = oackPack.Parse(packet) // Parse the options packet which contains the server key pair
 		if err != nil {
 			c.sendError(0, "Error parsing OACK packet")
 			panic("Error parsing OACK packet")

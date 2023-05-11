@@ -70,7 +70,7 @@ func AESTester() {
 	sharedKey := DHKETester()         // Generate a shared key
 	AES := deriveAESKey256(sharedKey) // Derive a 256-bit AES key from the shared key
 
-	img, _ := ProxyRequest("someimage.jpg") // Get the image via HTTP
+	img, _ := ProxyRequest("https://rare-gallery.com/uploads/posts/577429-star-wars-high.jpg") // Get the image via HTTP
 
 	blocks, _ := PrepareData(img, 512, AES) // Prepare the data for encryption
 	log.Printf("Number of blocks: %d\n", len(blocks))
@@ -95,5 +95,4 @@ func AESTester() {
 		log.Fatalf("Reformed and original are not the same!")
 	}
 	log.Printf("Reformed and original are the same! Checksum: %d\n", crc32.ChecksumIEEE(reformed))
-	log.Fatal("Bye!")
 }

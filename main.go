@@ -5,7 +5,6 @@ import (
 )
 
 func main() {
-	//go AESTester()
 	parseProgramArguments()
 
 	switch Mode {

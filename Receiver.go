@@ -14,10 +14,9 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 	log.Printf("Starting Receiver TFTP Transfer Loop\n")
 	c.receivedPackets = make(map[uint16]*tftp.Data)
 	dataPacket := make([]byte, 1024)
-	//n := 0           // number of bytes read
-	err = error(nil) // placeholder to avoid shadowing
-	lb := false      // last data block received
-	c.nextSeqNum = 0 // settings to 0 for first data packet
+	err = error(nil) // Placeholder to avoid shadowing
+	lb := false      // Last data block received
+	c.nextSeqNum = 0 // Setting to 0 for first data packet
 	ack := tftp.NewAck(c.nextSeqNum)
 	log.Printf("Sending initial ACK packet: %v\n", ack)
 	c.nextSeqNum++ // increment for first data packet
@@ -27,26 +26,30 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 		c.sendAbort()
 		return errors.New("error sending initial ACK packet: " + err.Error()), false
 	}
-	for { // loop until packet received
-		dataPacket = make([]byte, 1024) // reset data packet
-		n, err := conn.Read(dataPacket)
+	// Loop until packet received
+	for {
+		dataPacket = make([]byte, 1024) // Allocate new data packet
+		n, err := conn.Read(dataPacket) // Read data packet
+		// Decrypt data packet
 		dataPacket, _ = decrypt(dataPacket[:n], c.dhke.aes512Key)
 
+		// Get the opcode from the packet
 		opcode := binary.BigEndian.Uint16(dataPacket[:2])
 
+		// Handle packet based on opcode
 		switch tftp.TFTPOpcode(opcode) {
 		case tftp.TFTPOpcodeERROR:
 			c.handleErrPacket(dataPacket)
 		case tftp.TFTPOpcodeTERM:
 			return errors.New("termination packet received"), false
 		case tftp.TFTPOpcodeDATA:
-			lb = c.receiveDataPacket(dataPacket) // handle data packet
+			lb = c.receiveDataPacket(dataPacket) // Handle data packet
 		default:
 			if err != nil {
 				return errors.New("error reading packet: " + err.Error()), false
 			}
 		}
-		// if last data block received, end transfer
+		// If last data block received, end transfer
 		if lb {
 			log.Printf("Last data block received, ending transfer\n")
 			return nil, true
@@ -64,7 +67,7 @@ func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) bool {
 		c.sendAck(c.nextSeqNum - 1) // Send ACK for previous packet
 		return false
 	}
-	if dataPack.Checksm != tftp.Checksum(dataPack.Data) {
+	if dataPack.Checksum != tftp.Checksum(dataPack.Data) {
 		c.sendAck(c.nextSeqNum - 1) // Send ACK for previous packet
 		return false
 	}

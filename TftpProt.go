@@ -18,7 +18,6 @@ type TFTPProtocol struct {
 	windowSize      uint16                //Sliding window size
 	key             []byte                // Key
 	dataBlocks      []*tftp.Data          //Data packets to be sent
-	base            uint16                // Base of the window
 	nextSeqNum      uint16                // Next expected block number
 	totalFrames     int                   // Total number of frames
 	dataThroughIn   int                   // Data throughput in
@@ -98,7 +97,7 @@ func (c *TFTPProtocol) sendAck(nextSeqNum uint16) {
 	}
 }
 
-// handleErrPacket handles an error packet but currently just sends an error
+// HandleErrPacket handles an error packet but currently just sends an error
 // back so relying on timeout to close the connection.  Should probably
 // implement a proper connection close.
 func (c *TFTPProtocol) handleErrPacket(packet []byte) {
@@ -117,7 +116,7 @@ func (c *TFTPProtocol) SetTransferSize(size uint32) {
 	c.xferSize = size
 }
 
-// appendFileDate appends the file date to the data packet
+// AppendFileDate appends the file date to the data packet
 // and also keeps track of duplicate packets and discards \
 // any already stored.  duplicate packets are checked via a
 // struct in the TFTP protocol struct
@@ -126,8 +125,6 @@ func (c *TFTPProtocol) appendFileDate(data *tftp.Data) bool {
 	if _, exists := c.receivedPackets[data.BlockNumber]; exists {
 		log.Println("Duplicate packet, discarding")
 		return false
-	} else {
-		//log.Println("New packet, storing")
 	}
 	c.receivedPackets[data.BlockNumber] = data
 	c.totalFrames++
