@@ -57,7 +57,7 @@ func (c *TFTPProtocol) TftpClientTransferLoop(cn *net.UDPConn) (err error, finis
 	}
 }
 
-// receiveDataPacket handles a data packet and returns true if the last data
+// ReceiveDataPacket handles a data packet and returns true if the last data
 // note that this function needs a key to decrypt the data
 func (c *TFTPProtocol) receiveDataPacket(dataPacket []byte) bool {
 	var dataPack tftp.Data

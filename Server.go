@@ -36,14 +36,14 @@ func RunServerMode() {
 		return
 	}
 	defer udpServer.Close()
-	udpServer.handleConnectionsUDP2() // launch in separate goroutine
+	udpServer.handleConnectionsUDP2() // Launch in separate goroutine
 	select {}
 }
 
 func (c *TFTPProtocol) handleConnectionsUDP2() {
 	buf := make([]byte, 516)
 	for {
-		// read message
+		// Read message
 		n, raddr, err := c.conn.ReadFromUDP(buf)
 		if err != nil {
 			log.Println("Error reading message:", err)
